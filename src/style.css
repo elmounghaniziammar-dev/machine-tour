@@ -1,0 +1,21 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #e8eceb;
+  font-family: Arial, sans-serif;
+  color: #253b34;
+}
+canvas {
+  display: block;
+}
+.notice {
+  max-width: 600px;
+  margin: 15vh auto;
+  padding: 24px;
+  line-height: 1.6;
+  border: 1px solid #bdcbc3;
+  background: white;
+}
