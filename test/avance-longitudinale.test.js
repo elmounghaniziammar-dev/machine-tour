@@ -18,6 +18,32 @@ function proche(obtenu, attendu) {
   assert.ok(Math.abs(obtenu - attendu) < 1e-8, `${obtenu} au lieu de ${attendu}`);
 }
 
+test("le levier part de la position courante, avance dans le vide puis usine au diamètre du volant", () => {
+  for (const depart of [580, 560]) {
+    const { etat, axes, broche } = montage();
+    assert.ok(axes.regler("trainardZ", depart));
+    reglerDirection("ccw", etat);
+    actionnerLevier("avance", etat);
+    broche.actualiser(60 / etat.vitesse);
+    proche(etat.trainardZ, depart - etat.avance);
+    proche(axes.coupe.profil.volume, 0);
+    actionnerLevier("avance", etat);
+    assert.ok(axes.regler("transversalX", 18));
+    broche.actualiser(60 / etat.vitesse);
+    const debut = axes.coupe.position().x;
+    actionnerLevier("avance", etat);
+    broche.actualiser(50 * 60 / etat.vitesse);
+    proche(axes.coupe.position().x, debut - 50 * etat.avance);
+    proche(axes.coupe.profil.diametre(debut - 2), 36);
+    assert.ok(axes.coupe.profil.volume > 0);
+    actionnerLevier("avance", etat);
+    const arret = etat.trainardZ;
+    broche.actualiser(1);
+    proche(etat.trainardZ, arret);
+    assert.equal(etat.direction, "ccw");
+  }
+});
+
 test("un levier enclenché à l’arrêt attend la broche puis entraîne la pointe de l’outil à f mm par tour", () => {
   const { elements, etat, broche } = montage();
   etat.vitesse = 250;

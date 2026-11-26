@@ -93,7 +93,8 @@ if (!context) {
   scene.add(copeaux.objet);
   const pointVue = new THREE.Vector3();
   let vueActive = "ensemble", xPrecedent = 0;
-  const panneau = installerPanneau(etat, broche, deplacements, choix => {
+  const panneau = installerPanneau(etat, deplacements);
+  function cadrer(choix) {
     vueActive = choix;
     if (choix === "coupe") {
       machine.elements.bec.getWorldPosition(pointVue);
@@ -115,7 +116,13 @@ if (!context) {
       camera.position.set(1810, 780, 1920);
     }
     controls.update();
-  });
+  }
+  const vues = { "1": "ensemble", "2": "plaque", "3": "trainard", "4": "tambour", "5": "coupe" };
+  function raccourciVue(event) {
+    if (!controls.enabled || event.ctrlKey || event.altKey || event.metaKey || !Object.hasOwn(vues, event.key)) return;
+    cadrer(vues[event.key]);
+  }
+  window.addEventListener("keydown", raccourciVue);
   const interactions = installerInteractions(
     machine,
     camera,
@@ -167,6 +174,7 @@ if (!context) {
       renderer.setAnimationLoop(null);
       interactions.dispose();
       panneau.dispose();
+      window.removeEventListener("keydown", raccourciVue);
       copeaux.dispose();
       taille.disconnect();
       canvas.remove();

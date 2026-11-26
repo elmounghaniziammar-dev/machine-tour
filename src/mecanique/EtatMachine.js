@@ -23,6 +23,6 @@ export function creerEtatMachine() {
     fourreauBloque: false,
     urgence: false,
     passe: null,
-    message: "Préparer le chariotage à l’extrémité côté contre-pointe.",
+    message: "Vues 1–5 : ensemble, broche, traînard, tambour, coupe. Régler le diamètre au volant transversal et embrayer l’avance au levier du tablier.",
   };
 }

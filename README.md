@@ -19,13 +19,12 @@ Ouvrir l'adresse indiquée par Vite. Il faut un navigateur avec WebGL2 ; ouvrir 
 
 Le projet simule le **chariotage extérieur** d’un brut de Ø 40 × 150 mm. Le mandrin serre la pièce à gauche. À droite, une contre-pointe tournante la soutient dans un trou de centre préparé à 60°.
 
-1. Saisir le **diamètre à enlever**, le régime et l’avance par tour. Par exemple, enlever 4 mm sur Ø 40 mm donne Ø 36 mm et une profondeur radiale de 2 mm.
-2. Cliquer sur **Mettre en appui et bloquer**, ou sortir le fourreau au volant jusqu’au contact puis le verrouiller. La poupée mobile est initialement bloquée sur le banc.
-3. La passe guidée peut démarrer depuis une position dégagée. Le simulateur connaît le diamètre de sa pièce et rejoint automatiquement le départ. Pour s’exercer au réglage manuel, tangenter au volant transversal et mettre le tambour à zéro.
-4. Cliquer sur **Lancer le chariotage**. Le simulateur vérifie les jeux du montage, démarre la broche en marche avant et dégage l’outil radialement si le retour l’exige. Il rejoint ensuite la face droite, prend la profondeur hors matière et embraye l’avance vers le mandrin. La caméra suit la coupe. **Interrompre l’avance** débraye la passe à tout moment.
-5. À la fin des **120 mm usinables**, le traînard s’arrête et la broche continue de tourner. Le bec conserve 7,5 mm de jeu axial avec les mors sur ce montage. Pour une nouvelle passe, dégager l’outil au transversal, revenir au bord droit et tangenter le diamètre obtenu.
+1. Sur la poupée fixe, régler le régime à l’arrêt et choisir l’avance par tour. Pour soutenir le brut, approcher la contre-pointe au volant du fourreau puis bloquer le verrou.
+2. Tourner le volant transversal pour tangenter le brut et cliquer sur la bague pour prendre le zéro. Pour obtenir Ø 36 à partir de Ø 40 mm, prendre 2 mm au rayon en position dégagée au-delà de la face. La mesure **Ø réglé au bec** vaut deux fois la distance du bec à l’axe, quel que soit le zéro du tambour.
+3. Cliquer sur le levier de broche pour démarrer en marche avant, puis sur le levier d’avance du tablier pour embrayer. Le traînard part de sa position actuelle. On peut aussi embrayer à l’arrêt puis démarrer la broche. L’outil peut avancer dans le vide avant la coupe.
+4. Cliquer de nouveau sur le levier du tablier à la fin de la longueur voulue. La broche continue de tourner. Les butées et les collisions bornent les mouvements.
 
-**Démarrer la broche seule** permet de faire tourner la pièce indépendamment du traînard. Pour conduire la machine aux commandes 3D, prendre la profondeur au transversal hors de la pièce puis embrayer la barre d’avance. En chariotage, la trajectoire du traînard est parallèle à l’axe de la broche et produit une surface cylindrique. [Notice du tour SIDERMÉCA, § 6.6](https://www.metiers-et-passions.com/waroot/METP/fr_FR/attachments/notice_instruction/NI_92222018.pdf)
+Le panneau 2D affiche uniquement des mesures et des états. Les touches **1 à 5** cadrent la machine entière, la poupée fixe, le traînard, le tambour et la zone de coupe. La molette permet de zoomer.
 
 ## Modèle de coupe
 
@@ -36,11 +35,9 @@ Le projet simule le **chariotage extérieur** d’un brut de Ø 40 × 150 mm. Le
 
 ## Utiliser la machine
 
-Dans **Volants et avance**, tourner le volant transversal dans la vue 3D ou utiliser les boutons d’une division. Sur ce simulateur, une division correspond à 0,05 mm **au rayon**, soit 0,10 mm sur le diamètre si l’on coupe. À la tangence, cliquer sur la bague graduée ou sur **Mettre le tambour à zéro**. Le bec garde sa position. La lecture à l’index recommence à zéro à chaque tour de 5 mm, tandis que la course radiale cumule les tours. La mise à zéro est disponible en conduite manuelle, y compris lorsque la broche tourne seule.
+Le volant transversal tourne de façon continue par glissement circulaire. Un clic sur le volant avance d’une division et Maj + clic recule d’une division. Une division vaut 0,05 mm au rayon, soit 0,10 mm sur le diamètre. Un clic sur la bague graduée remet sa lecture à zéro sans déplacer le bec.
 
-Le levier d’avance sur le tablier et **Embrayer l’avance Z** actionnent la même barre. Broche arrêtée, l’embrayage prépare le mouvement. En marche avant, le traînard avance vers le mandrin et la coordonnée Z diminue. L’origine Z affichée est la face droite du brut. À 250 tr/min et 0,10 mm/tr, l’avance est de 25 mm/min. Débrayer arrête l’avance et conserve le régime de la pièce.
-
-L’onglet **Plaque SN 40** reprend les 6 lignes et les 4 colonnes de la photo fournie. La case cachée par le gant porte un tiret. Le tableau de filetage situé à droite est visible sur la poupée fixe et dans la photo originale. Le pas du tambour et les avances en mm/tr reprennent les paramètres du simulateur. La photo documente les régimes de broche.
+À 250 tr/min et 0,10 mm/tr, la barre d’avance déplace le traînard de 25 mm/min vers le mandrin en marche avant. L’origine Z affichée correspond à la face droite du brut. La plaque sur la poupée fixe reprend les régimes lisibles du SN 40.
 
 Survoler une commande 3D la met en évidence et affiche une infobulle avec son nom, sa valeur et le geste attendu. Un message d'état dans la vue 3D signale notamment les butées et les verrous. Le cran **Marche avant · sens de coupe** correspond à la rotation antihoraire vue depuis la poupée mobile. La surface avant de la pièce descend alors sur la plaquette.
 
@@ -82,7 +79,7 @@ Orienter la vue assez face au volant ou au levier pour que le geste circulaire s
 | `src/mecanique/Broche.js` | Rotation de la broche et avance automatique selon le temps écoulé. |
 | `src/mecanique/ProfilPiece.js`, `Coupe.js` | Rayons résiduels, balayage des arêtes de coupe et bilan volumique. |
 | `src/machine/parts/Copeaux.js` | Émission et mouvement des rubans de copeaux. |
-| `src/interactions/PanneauUsinage.js` | Réduction du diamètre, préparation du montage, commande de chariotage et mesures en direct. |
+| `src/interactions/PanneauUsinage.js` | Affichage en lecture seule des diamètres, de la coupe et des mouvements. |
 | `src/interactions/Selection.js` | Sélection des commandes visibles par lancer de rayon, gestes de pointeur, infobulles et messages d'état. |
 | `src/interactions/InteractionVolant.js` | Projection des gestes sur les plans des volants et du banc. |
 | `src/interactions/InteractionSelecteur.js`, `InteractionLevier.js` | Réglages et représentation visuelle des sélecteurs et leviers. |

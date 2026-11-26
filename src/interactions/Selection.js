@@ -14,7 +14,7 @@ import {
   reglerVitesseIndex,
 } from "./InteractionSelecteur.js";
 import { CRANS_BROCHE, SENS_COUPE, VITESSES } from "../mecanique/EtatMachine.js";
-import { PAS, SENS_VOLANT } from "../mecanique/Limites.js";
+import { PAS, SENS_VOLANT, TAMBOUR_TRANSVERSAL } from "../mecanique/Limites.js";
 
 // Le premier objet réellement visible doit être la commande : pas de clic à travers la fonte.
 export function trouverCommande(machine, raycaster, commandes) {
@@ -63,8 +63,8 @@ export function installerInteractions(
       axe: "transversalX",
       pas: PAS.transversalX,
       nom: "Volant du transversal",
-      valeur: () => `${mm(deplacements.lireTambour().deplacement)} mm depuis le zéro radial`,
-      geste: "Tourner le volant · 0,05 mm radial par division",
+      valeur: () => `Ø réglé au bec ${mm(2 * Math.abs(deplacements.coupe.position().r))} mm`,
+      geste: "Tourner pour régler le diamètre. Clic : avancer d’une division. Maj + clic : reculer.",
     },
     {
       objet: e.tambourTransversal,
@@ -117,7 +117,7 @@ export function installerInteractions(
       type: "direction",
       nom: "direction", titre: "Sens de la broche",
       valeur: () => etat.direction === "off" ? "Arrêt" : etat.direction === SENS_COUPE ? "Marche avant · sens de coupe" : "Marche arrière",
-      geste: "Glisser vers un cran · repasser par l’arrêt pour inverser",
+      geste: "Cliquer pour démarrer en marche avant ou arrêter. Glisser pour choisir le sens.",
     },
     {
       objet: e.arret,
@@ -131,7 +131,7 @@ export function installerInteractions(
       type: "levier",
       nom: "avance", titre: "Levier d’avance longitudinale Z",
       valeur: () => etat.engagement === "rod" ? "Embrayé" : "Débrayé",
-      geste: "Cliquer pour embrayer ou débrayer",
+      geste: "Cliquer pour avancer depuis la position actuelle. Cliquer de nouveau pour débrayer.",
     },
     {
       objet: e.levierDemiNoix,
@@ -262,7 +262,7 @@ export function installerInteractions(
     let translation = null;
     if (["volant", "vitesse", "direction", "verrou"].includes(commande.type)) {
       rotation = commencerRotation(commande.objet, raycaster.ray);
-      if (!rotation) {
+      if (!rotation && commande.type !== "direction" && commande.axe !== "transversalX") {
         etat.message =
           "Se placer face à la commande et saisir sa poignée.";
         return;
@@ -290,6 +290,7 @@ export function installerInteractions(
       translation,
       debutX: event.clientX,
       debutY: event.clientY,
+      deplace: false,
       departPoupee: etat.poupeeZ,
       departAngle: commande.objet.rotation.z,
       angleCumule: 0,
@@ -315,15 +316,19 @@ export function installerInteractions(
     event.preventDefault();
     event.stopImmediatePropagation();
     if (event.pointerId !== geste.pointer) return;
+    if (Math.hypot(event.clientX - geste.debutX, event.clientY - geste.debutY) >= 5) geste.deplace = true;
     const ray = rayon(event),
       c = geste.commande;
     if (geste.rotation) {
       const variation = geste.rotation.tourner(ray);
-      if (c.type === "volant" && variation !== 0) {
+      if (c.axe === "transversalX" && !geste.deplace) {
+        geste.angleCumule += variation;
+      } else if (c.type === "volant" && (variation !== 0 || geste.angleCumule !== 0)) {
         deplacements.regler(
           c.axe,
-          etat[c.axe] + SENS_VOLANT[c.axe] * (variation / (2 * Math.PI)) * c.pas,
+          etat[c.axe] + SENS_VOLANT[c.axe] * ((variation + geste.angleCumule) / (2 * Math.PI)) * c.pas,
         );
+        geste.angleCumule = 0;
       } else if (c.type !== "volant") {
         geste.angleCumule += variation;
         const angle = geste.departAngle + geste.angleCumule;
@@ -371,11 +376,15 @@ export function installerInteractions(
     if (canvas.hasPointerCapture(ancien.pointer))
       canvas.releasePointerCapture(ancien.pointer);
     if (
-      !annuler &&
+      !annuler && !ancien.deplace &&
       Math.hypot(event.clientX - ancien.debutX, event.clientY - ancien.debutY) <
         5
     ) {
       const c = ancien.commande;
+      if (c.type === "direction")
+        reglerDirection(ancien.directionInitiale === "off" ? SENS_COUPE : "off", etat);
+      if (c.axe === "transversalX")
+        deplacements.regler(c.axe, etat[c.axe] + (event.shiftKey ? 1 : -1) * TAMBOUR_TRANSVERSAL.mmParDivision);
       if (c.type === "zero") deplacements.mettreTambourAZero();
       if (c.type === "selecteur")
         actionnerSelecteur(c.nom, etat, event.shiftKey);
