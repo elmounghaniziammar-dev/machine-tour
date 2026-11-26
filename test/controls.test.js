@@ -66,9 +66,10 @@ test("le levier de broche montre trois positions et impose l'arrêt avant l'inve
   assert.equal(etat.direction, "ccw");
 });
 
-test("les douze crans de vitesse restent bloqués lorsque la broche tourne", () => {
+test("les régimes lisibles sur la plaque SN 40 restent bloqués lorsque la broche tourne", () => {
   const { machine, etat } = preparer();
-  assert.deepEqual(VITESSES, [45, 63, 90, 125, 180, 250, 355, 500, 710, 1000, 1400, 2000]);
+  assert.deepEqual(VITESSES, [22.4, 31.5, 45, 63, 90, 125, 180, 250, 355, 500, 710, 1000, 1400, 2000]);
+  assert.equal(machine.getObjectByName("sn40Cell5_1").userData.label, "-");
   const afficheur = machine.getObjectByName("selectorNumber0");
   assert.ok(machine.getObjectByName("selectorNumber0Digit0A"));
   const angles = [];
@@ -126,7 +127,7 @@ test("les verrous empêchent le glissement de la poupée et la sortie du fourrea
   actionnerLevier("verrouFourreau", etat);
   assert.equal(etat.fourreauBloque, true);
   assert.equal(deplacements.regler("fourreau", 40), false);
-  assert.equal(etat.fourreau, 50);
+  assert.equal(etat.fourreau, 42);
   actionnerLevier("verrouFourreau", etat);
   assert.equal(deplacements.regler("fourreau", 40), true);
   assert.equal(etat.fourreau, 40);
@@ -143,13 +144,13 @@ test("chaque déplacement suit le bon parent et l'axe local du petit chariot", (
 
   const outilAvant = positionMonde(outil);
   const selleAvant = positionMonde(selle);
-  assert.equal(deplacements.regler("trainardZ", 570), true);
+  assert.equal(deplacements.regler("trainardZ", etat.trainardZ + 5), true);
   proche(positionMonde(outil).x - outilAvant.x, 5, "outil avec traînard");
   proche(positionMonde(selle).x - selleAvant.x, 5, "selle avec traînard");
 
   const outilTransversal = positionMonde(outil);
   const selleTransversal = positionMonde(selle);
-  assert.equal(deplacements.regler("transversalX", 25), true);
+  assert.equal(deplacements.regler("transversalX", etat.transversalX + 5), true);
   proche(positionMonde(outil).z - outilTransversal.z, 5, "outil avec transversal");
   proche(positionMonde(selle).z - selleTransversal.z, 0, "selle fixe au transversal");
 
@@ -158,7 +159,7 @@ test("chaque déplacement suit le bon parent et l'axe local du petit chariot", (
   base.rotation.y = Math.PI / 6;
   const outilPetit = positionMonde(outil);
   const semelleAvant = positionMonde(semelle);
-  const axeLocal = new THREE.Vector3(0, 0, 1).applyQuaternion(base.getWorldQuaternion(new THREE.Quaternion()));
+  const axeLocal = new THREE.Vector3(1, 0, 0).applyQuaternion(base.getWorldQuaternion(new THREE.Quaternion()));
   etat.petitChariot = 5;
   deplacements.actualiser();
   const delta = positionMonde(outil).sub(outilPetit);

@@ -2,6 +2,8 @@
 // Un volant est composé d’un anneau, de trois branches et d’une poignée.
 
 import * as THREE from "three";
+import { TAMBOUR_TRANSVERSAL, PAS } from "../../mecanique/Limites.js";
+import { digits } from "./Details.js";
 import {
   group,
   box,
@@ -65,17 +67,18 @@ export function lever(name, label, length = 40) {
   return root;
 }
 export function crossDial() {
+  const { divisions } = TAMBOUR_TRANSVERSAL;
   const root = group(
     "crossSlideDial",
-    "Cross-slide graduated dial",
-    "100 divisions per turn; each division is 0.05 mm radial travel.",
+    "Tambour transversal",
+    "Bague graduée réglable en millimètres de déplacement radial.",
   );
   cylinder(root, "crossDialDrum", 31, 18, [0, 0, 0], materials.brass, "z");
   const ticks = annotate(
     new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
       materials.dark,
-      100,
+      divisions,
     ),
     "crossDialGraduations",
     "Dial graduations",
@@ -83,19 +86,27 @@ export function crossDial() {
     "One turn represents 5 mm radial travel.",
   );
   const dummy = new THREE.Object3D();
-  for (let i = 0; i < 100; i++) {
-    const angle = (i * Math.PI * 2) / 100,
+  for (let i = 0; i < divisions; i++) {
+    const angle = (i * Math.PI * 2) / divisions,
       len = i % 10 === 0 ? 7 : i % 5 === 0 ? 5 : 3;
     dummy.position.set(
-      Math.sin(angle) * (30 - len / 2),
+      -Math.sin(angle) * (30 - len / 2),
       Math.cos(angle) * (30 - len / 2),
       9.2,
     );
-    dummy.rotation.z = -angle;
+    dummy.rotation.z = angle;
     dummy.scale.set(0.65, len, 0.5);
     dummy.updateMatrix();
     ticks.setMatrixAt(i, dummy.matrix);
   }
   root.add(ticks);
+  // Le chiffre rejoint le repère fixe à midi après chaque millimètre de pénétration.
+  for (let mm = 0; mm < PAS.transversalX; mm++) {
+    const angle = mm * 2 * Math.PI / PAS.transversalX;
+    const marque = digits(root, `crossDialMm${mm}`, String(mm),
+      [-19 * Math.sin(angle), 19 * Math.cos(angle), 9.3], 5.5);
+    marque.rotation.z = angle;
+    for (const segment of marque.children) segment.material = materials.dark;
+  }
   return root;
 }

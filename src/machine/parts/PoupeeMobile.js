@@ -4,6 +4,7 @@
 import { group, box, cylinder, materials } from "../../utils/geometry.js";
 import { taperedCasting, bolt } from "./Details.js";
 import { handwheel, lever } from "./Volants.js";
+import { CENTRAGE } from "../../mecanique/ProfilPiece.js";
 export function createTailstock() {
   const root = group(
     "tailstock",
@@ -65,7 +66,7 @@ export function createTailstock() {
   cylinder(
     liveCenter,
     "liveCenterPoint",
-    25,
+    40 * CENTRAGE.pente,
     40,
     [-56, 0, 0],
     materials.steel,

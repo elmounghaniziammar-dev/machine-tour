@@ -9,6 +9,16 @@ export const PAS = {
   barre: 2,
 };
 
+// Étalonnage radial du tambour de cette simulation.
+const divisionsTransversales = 100;
+export const TAMBOUR_TRANSVERSAL = Object.freeze({
+  divisions: divisionsTransversales,
+  mmParDivision: PAS.transversalX / divisionsTransversales,
+});
+
+// Déplacement d’axe pour une rotation positive vue de face au volant.
+export const SENS_VOLANT = { trainardZ: -1, transversalX: 1, petitChariot: 1, fourreau: -1 };
+
 // Courses des glissières. Collisions.js ajoute les contacts entre assemblages.
 // Les anciens noms d'état trainardZ et transversalX sont conservés ; leurs axes
 // réels sont respectivement X et Z dans la scène.

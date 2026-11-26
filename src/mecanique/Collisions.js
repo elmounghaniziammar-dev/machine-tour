@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CENTRAGE } from "./ProfilPiece.js";
 
 // Les pièces guidées restent rigides : chaque commande translate un groupe entier.
 // On conserve une boîte par maillage, puis on cherche le premier contact sur l'axe
@@ -19,7 +20,7 @@ function maillages(groupe) {
   return objets;
 }
 
-export function creerCollisions(elements, etat) {
+export function creerCollisions(elements, etat, coupe) {
   const reference = {
     trainardZ: etat.trainardZ,
     transversalX: etat.transversalX,
@@ -35,7 +36,9 @@ export function creerCollisions(elements, etat) {
   };
 
   function creerBoite(objet, corps) {
+    objet.updateWorldMatrix(true, false);
     const boite = new THREE.Box3().setFromObject(objet);
+    let rayonBalaye = null;
     // Les mors tournent autour de X. Leur enveloppe circulaire empêche de
     // placer un chariot sur leur trajectoire entre deux images d'animation.
     // Le brut est déjà un cylindre de révolution : sa boîte initiale est exacte.
@@ -44,15 +47,14 @@ export function creerCollisions(elements, etat) {
       estDans(objet, elements.broche) &&
       objet.name !== "workpieceBlank"
     ) {
-      const ry = Math.max(
-        Math.abs(boite.min.y - centreBroche.y),
-        Math.abs(boite.max.y - centreBroche.y),
-      );
-      const rz = Math.max(
-        Math.abs(boite.min.z - centreBroche.z),
-        Math.abs(boite.max.z - centreBroche.z),
-      );
-      const rayon = Math.hypot(ry, rz);
+      const sommets = objet.geometry.getAttribute("position");
+      const point = new THREE.Vector3();
+      let rayon = 0;
+      for (let i = 0; i < sommets.count; i++) {
+        point.fromBufferAttribute(sommets, i).applyMatrix4(objet.matrixWorld);
+        rayon = Math.max(rayon, Math.hypot(point.y - centreBroche.y, point.z - centreBroche.z));
+      }
+      rayonBalaye = rayon;
       boite.min.y = centreBroche.y - rayon;
       boite.max.y = centreBroche.y + rayon;
       boite.min.z = centreBroche.z - rayon;
@@ -61,10 +63,13 @@ export function creerCollisions(elements, etat) {
     return {
       objet,
       id: objet.name,
-      nom: objet.userData.label || objet.name,
+      nom: ({ carbideInsert: "plaquette", toolShank: "corps de l’outil",
+        liveCenterPoint: "contre-pointe", workpieceBlank: "pièce" })[objet.name] ||
+        (objet.name.startsWith("jawGrippingStep") ? "mors" : objet.userData.label || objet.name),
       min: boite.min.toArray(),
       max: boite.max.toArray(),
       corps,
+      rayonBalaye,
       transversal: estDans(objet, elements.transversal),
       superieur: estDans(objet, elements.chariotSuperieur),
       fourreau: estDans(objet, elements.fourreau),
@@ -74,7 +79,18 @@ export function creerCollisions(elements, etat) {
   const boites = Object.fromEntries(
     Object.entries(groupes).map(([nom, groupe]) => [
       nom,
-      maillages(groupe).map((objet) => creerBoite(objet, nom)),
+      maillages(groupe).flatMap((objet) => {
+        const b = creerBoite(objet, nom);
+        if (b.id !== "liveCenterPoint") return [b];
+        // Enveloppe du cône par tranches de 1 mm, valable même à fourreau mobile.
+        const n = Math.ceil(b.max[0] - b.min[0]);
+        return Array.from({ length: n }, (_, i) => {
+          const pas = (b.max[0] - b.min[0]) / n;
+          const r = (i + 1) * pas * CENTRAGE.pente;
+          return { ...b, min: [b.min[0] + i * pas, centreBroche.y - r, centreBroche.z - r],
+            max: [b.min[0] + (i + 1) * pas, centreBroche.y + r, centreBroche.z + r] };
+        });
+      }),
     ]),
   );
   const mobiles = {
@@ -87,7 +103,7 @@ export function creerCollisions(elements, etat) {
   const axes = {
     trainardZ: [0, 1],
     transversalX: [2, 1],
-    petitChariot: [2, 1],
+    petitChariot: [0, 1],
     poupeeZ: [0, 1],
     fourreau: [0, -1],
   };
@@ -97,23 +113,24 @@ export function creerCollisions(elements, etat) {
     return Math.abs(elements.chariotSuperieur.parent.rotation.y) > EPSILON;
   }
 
-  function boiteActuelle(boite) {
+  function boiteActuelle(boite, pose = etat) {
     // La base du petit chariot peut tourner : sa boîte doit suivre sa vraie pose.
     if (boite.superieur && baseOrientee()) {
       boite.objet.updateWorldMatrix(true, false);
       const actuelle = new THREE.Box3().setFromObject(boite.objet);
+      actuelle.translate(new THREE.Vector3(pose.trainardZ - etat.trainardZ, 0, pose.transversalX - etat.transversalX));
       return { min: actuelle.min.toArray(), max: actuelle.max.toArray() };
     }
     const dx =
       (boite.corps === "trainard"
-        ? etat.trainardZ - reference.trainardZ
+        ? pose.trainardZ - reference.trainardZ
         : boite.corps === "poupee"
           ? etat.poupeeZ - reference.poupeeZ
           : 0) -
-      (boite.fourreau ? etat.fourreau - reference.fourreau : 0);
-    const dz =
-      (boite.transversal ? etat.transversalX - reference.transversalX : 0) +
+      (boite.fourreau ? etat.fourreau - reference.fourreau : 0) +
       (boite.superieur ? etat.petitChariot - reference.petitChariot : 0);
+    const dz =
+      (boite.transversal ? pose.transversalX - reference.transversalX : 0);
     return {
       min: [boite.min[0] + dx, boite.min[1], boite.min[2] + dz],
       max: [boite.max[0] + dx, boite.max[1], boite.max[2] + dz],
@@ -165,10 +182,15 @@ export function creerCollisions(elements, etat) {
     return versObstacle > 0 ? 0 : null;
   }
 
+  function contactDeCoupe(mobile, obstacle, enPasse = false) {
+    return mobile.id === "carbideInsert" && obstacle.id === "workpieceBlank" &&
+      (enPasse || coupe.active() || coupe.profil.volume > 0);
+  }
+
   function bornerPetitChariot(depart, demande, obstacles) {
     const base = elements.chariotSuperieur.parent;
     base.updateWorldMatrix(true, false);
-    const delta = new THREE.Vector3(0, 0, 1)
+    const delta = new THREE.Vector3(1, 0, 0)
       .transformDirection(base.matrixWorld)
       .multiplyScalar(demande - depart);
     let libre = 1;
@@ -176,6 +198,7 @@ export function creerCollisions(elements, etat) {
     for (const mobile of mobiles.petitChariot) {
       const a = boiteActuelle(mobile);
       for (const obstacle of obstacles) {
+        if (contactDeCoupe(mobile, obstacle.objet)) continue;
         const fraction = fractionContact(a, obstacle.bounds, delta);
         if (fraction !== null && fraction < libre) {
           libre = Math.max(0, fraction);
@@ -188,8 +211,8 @@ export function creerCollisions(elements, etat) {
 
   // La distance au premier contact est mesurée depuis la position actuelle.
   // Un grand mouvement de souris ne peut donc pas traverser puis ressortir d'un objet.
-  function borner(axe, demande) {
-    const depart = etat[axe];
+  function borner(axe, demande, pose = etat) {
+    const depart = pose[axe];
     const amplitude = Math.abs(demande - depart);
     if (amplitude === 0) return { position: demande, contact: null };
 
@@ -199,7 +222,7 @@ export function creerCollisions(elements, etat) {
         : [...boites.fixe, ...boites.poupee];
     const obstacles = fixes.map((boite) => ({
       objet: boite,
-      bounds: boiteActuelle(boite),
+      bounds: boiteActuelle(boite, pose),
     }));
     if (axe === "petitChariot" && baseOrientee())
       return bornerPetitChariot(depart, demande, obstacles);
@@ -210,9 +233,20 @@ export function creerCollisions(elements, etat) {
     let contact = null;
 
     for (const mobile of mobiles[axe]) {
-      const a = boiteActuelle(mobile);
+      const a = boiteActuelle(mobile, pose);
       for (const obstacle of obstacles) {
-        const b = obstacle.bounds;
+        if (contactDeCoupe(mobile, obstacle.objet, pose !== etat)) continue;
+        let b = obstacle.bounds;
+        if (mobile.id === "liveCenterPoint" && obstacle.objet.id === "workpieceBlank") {
+          // Le sommet entre dans le centre déjà percé. Les deux cônes de 60°
+          // s'appuient lorsque le sommet atteint le fond de cette portée.
+          b = { min: b.min, max: [b.max[0] - CENTRAGE.profondeur, b.max[1], b.max[2]] };
+        }
+        if (dimension === 0 && obstacle.objet.rayonBalaye !== null) {
+          const ry = Math.max(0, a.min[1] - centreBroche.y, centreBroche.y - a.max[1]);
+          const rz = Math.max(0, a.min[2] - centreBroche.z, centreBroche.z - a.max[2]);
+          if (Math.hypot(ry, rz) >= obstacle.objet.rayonBalaye) continue;
+        }
         if (!chevauchementHorsAxe(a, b, dimension)) continue;
         let ecart =
           sens > 0
@@ -249,9 +283,32 @@ export function creerCollisions(elements, etat) {
   const pointe = boites.poupee.find((boite) => boite.id === "liveCenterPoint");
   if (!brut || !pointe)
     throw new Error("Missing workpiece or live-center collision mesh");
-  function pointeSurPiece() {
-    return Math.abs(boiteActuelle(pointe).min[0] - brut.max[0]) <= EPSILON;
-  }
+  const ecartPointe = () => boiteActuelle(pointe).min[0] - (brut.max[0] - CENTRAGE.profondeur);
+  const pointeSurPiece = () => Math.abs(ecartPointe()) <= EPSILON;
 
-  return { borner, pointeSurPiece };
+  function bornerAvecProfil(axe, demande) {
+    const limite = borner(axe, demande);
+    if (coupe.active() || coupe.profil.volume === 0 ||
+        axe === "poupeeZ" || axe === "fourreau") return limite;
+    const depart = etat[axe];
+    const d = limite.position - depart;
+    const angle = elements.chariotSuperieur.parent.rotation.y;
+    const dx = axe === "trainardZ" ? d : axe === "petitChariot" ? d * Math.cos(angle) : 0;
+    const dz = axe === "transversalX" ? d : axe === "petitChariot" ? -d * Math.sin(angle) : 0;
+    const fraction = coupe.fractionObstacle(dx, dz);
+    if (fraction === 1) return limite;
+    return { position: depart + d * fraction, contact: "plaquette / pièce usinée" };
+  }
+  // Vérifier les jeux aux poses successives sans déplacer la machine ni toucher au brut.
+  function obstacleSurTrajet(phases) {
+    const pose = { ...etat };
+    for (const { axe, cible } of phases) {
+      if (!axe) continue;
+      const { contact } = borner(axe, cible, pose);
+      if (contact) return contact;
+      pose[axe] = cible;
+    }
+    return null;
+  }
+  return { borner: bornerAvecProfil, obstacleSurTrajet, pointeSurPiece, ecartPointe };
 }

@@ -7,6 +7,7 @@ import { creerEtatMachine } from "../src/mecanique/EtatMachine.js";
 import { creerDeplacements } from "../src/mecanique/Deplacements.js";
 import { creerBroche } from "../src/mecanique/Broche.js";
 import { materials } from "../src/utils/geometry.js";
+import { CENTRAGE } from "../src/mecanique/ProfilPiece.js";
 
 const EPSILON = 1e-4;
 
@@ -42,16 +43,31 @@ function matriceRelative(parent, enfant) {
   return parent.matrixWorld.clone().invert().multiply(enfant.matrixWorld);
 }
 
+function verifierPortee(machine) {
+  const piece = limitesMonde(machine, "workpieceBlank");
+  const pointe = limitesMonde(machine, "liveCenterPoint");
+  assert.ok(pointe.min.x >= piece.max.x - CENTRAGE.profondeur - EPSILON);
+}
+
+function verifierDegagementCone(machine) {
+  const outil = limitesMonde(machine, "carbideInsert");
+  const cone = limitesMonde(machine, "liveCenterPoint");
+  if (outil.max.x <= cone.min.x || outil.min.x >= cone.max.x) return;
+  const rayon = (Math.min(outil.max.x, cone.max.x) - cone.min.x) * CENTRAGE.pente;
+  assert.ok(outil.min.z >= rayon - EPSILON, "L’outil pénètre dans la surface conique");
+}
+
 function memesMatrices(a, b) {
   for (let i = 0; i < 16; i++)
     assert.ok(Math.abs(a.elements[i] - b.elements[i]) < 1e-8, `matrix element ${i} changed`);
 }
 
-test("initial workpiece, live center, and cutting tip touch without penetration", () => {
-  const { machine } = machineEnEtat();
+test("le montage démarre avec la pointe et le bec dégagés à la face libre", () => {
+  const { machine, deplacements } = machineEnEtat();
   const piece = limitesMonde(machine, "workpieceBlank");
   const pointe = limitesMonde(machine, "liveCenterPoint");
-  assert.ok(Math.abs(piece.max.x - pointe.min.x) <= EPSILON);
+  assert.ok(pointe.min.x > piece.max.x);
+  assert.deepEqual(deplacements.coupe.position(), { x: 150, r: 22 });
   pasDePenetration(machine, "workpieceBlank", "liveCenterPoint");
   pasDePenetration(machine, "workpieceBlank", "carbideInsert");
 });
@@ -59,44 +75,45 @@ test("initial workpiece, live center, and cutting tip touch without penetration"
 test("quill and tailstock cannot push the live center into the workpiece", () => {
   const { machine, etat, deplacements } = machineEnEtat();
   etat.poupeeBloquee = false;
-  assert.equal(deplacements.pointeSurPiece(), true);
+  assert.equal(deplacements.pointeSurPiece(), false);
 
   assert.equal(deplacements.regler("fourreau", 80), false);
-  pasDePenetration(machine, "workpieceBlank", "liveCenterPoint");
+  verifierPortee(machine);
+  assert.equal(deplacements.pointeSurPiece(), true);
 
   assert.equal(deplacements.regler("poupeeZ", 1000), true);
   assert.equal(deplacements.pointeSurPiece(), false);
   assert.equal(deplacements.regler("fourreau", 80), true);
   assert.equal(deplacements.regler("poupeeZ", 780), false);
-  pasDePenetration(machine, "workpieceBlank", "liveCenterPoint");
+  verifierPortee(machine);
   assert.equal(deplacements.pointeSurPiece(), true);
 
   const piece = limitesMonde(machine, "workpieceBlank");
   const pointe = limitesMonde(machine, "liveCenterPoint");
-  assert.ok(pointe.min.x >= piece.max.x - EPSILON);
+  assert.ok(Math.abs(pointe.min.x - (piece.max.x - CENTRAGE.profondeur)) < EPSILON);
 });
 
 test("repeated sub-micron quill steps cannot bypass an existing contact", () => {
   const { machine, etat, deplacements } = machineEnEtat();
-
+  deplacements.regler("fourreau", 53);
   for (let i = 0; i < 50; i++) {
     assert.equal(deplacements.regler("fourreau", etat.fourreau + 5e-7), false);
-    assert.equal(etat.fourreau, 50);
+    assert.equal(etat.fourreau, 53);
   }
   assert.equal(deplacements.regler("fourreau", 80), false);
-  assert.equal(etat.fourreau, 50);
-  pasDePenetration(machine, "workpieceBlank", "liveCenterPoint");
+  assert.equal(etat.fourreau, 53);
+  verifierPortee(machine);
 });
 
 test("the live center rotates only while it touches the workpiece", () => {
   const { machine, etat, deplacements, broche } = machineEnEtat();
-  assert.equal(deplacements.regler("fourreau", 49.9), true);
+  assert.equal(deplacements.regler("fourreau", 52.9), true);
   assert.equal(deplacements.pointeSurPiece(), false);
   etat.direction = "cw";
   broche.actualiser(1);
   assert.equal(machine.elements.pointe.rotation.x, 0);
 
-  assert.equal(deplacements.regler("fourreau", 50), true);
+  assert.equal(deplacements.regler("fourreau", 53), true);
   assert.equal(deplacements.pointeSurPiece(), true);
   broche.actualiser(1);
   assert.notEqual(machine.elements.pointe.rotation.x, 0);
@@ -125,23 +142,23 @@ test("cross-slide and carriage stop before the tool enters stock or live center"
   assert.equal(deplacements.regler("poupeeZ", 1000), true);
   assert.equal(deplacements.regler("fourreau", 80), true);
   assert.equal(deplacements.regler("trainardZ", 800), false);
-  pasDePenetration(machine, "carbideInsert", "liveCenterPoint");
+  verifierDegagementCone(machine);
 });
 
 test("angled compound slide approaches stock, stops at contact, then withdraws", () => {
   const { machine, etat, deplacements } = machineEnEtat();
   const base = machine.getObjectByName("compoundRest");
-  base.rotation.y = Math.PI / 6;
+  deplacements.regler("trainardZ", 550);
+  base.rotation.y = 0.35;
   machine.updateMatrixWorld(true);
 
-  // À 30°, la plaquette s'écarte du brut : les 2 premiers mm restent libres.
-  assert.equal(deplacements.regler("petitChariot", -2), true);
-  assert.equal(etat.petitChariot, -2);
+  assert.equal(deplacements.regler("petitChariot", 2), true);
+  assert.equal(etat.petitChariot, 2);
   pasDePenetration(machine, "carbideInsert", "workpieceBlank");
 
   // Un grand geste s'arrête au premier contact, puis le retrait reste possible.
-  assert.equal(deplacements.regler("petitChariot", -40), false);
-  assert.ok(etat.petitChariot < -2 && etat.petitChariot > -40);
+  assert.equal(deplacements.regler("petitChariot", 40), false);
+  assert.ok(etat.petitChariot > 2 && etat.petitChariot < 40);
   pasDePenetration(machine, "carbideInsert", "workpieceBlank");
   assert.equal(deplacements.regler("petitChariot", 0), true);
   assert.equal(etat.petitChariot, 0);
@@ -159,14 +176,14 @@ test("angled compound bounds follow cross-slide before carriage travel", () => {
 
 test("a large automatic-feed step stops at contact instead of tunneling", () => {
   const { machine, etat, broche } = machineEnEtat();
-  etat.direction = "ccw";
+  etat.direction = "cw"; // Barre en marche arrière : déplacement vers la poupée mobile.
   etat.engagement = "rod";
 
   broche.actualiser(1000);
   assert.equal(etat.engagement, "off");
   assert.ok(etat.trainardZ > 565 && etat.trainardZ < 1060);
   pasDePenetration(machine, "saddle", "tailstockLowerShoe");
-  pasDePenetration(machine, "carbideInsert", "liveCenterPoint");
+  verifierDegagementCone(machine);
 });
 
 test("feed drives rotate only for the carriage distance actually traveled", () => {
@@ -179,7 +196,7 @@ test("feed drives rotate only for the carriage distance actually traveled", () =
     deplacements.regler("trainardZ", 600);
     const axe = machine.elements[nom];
     const avant = axe.quaternion.clone();
-    etat.direction = "ccw";
+    etat.direction = mode === "rod" ? "cw" : "ccw";
     etat.engagement = mode;
 
     broche.actualiser(10);

@@ -1,5 +1,7 @@
 # Code analysis: Tour parallèle
 
+This report records the kinematic model before machining was added. For the current cutting model, operations and validation commands, see the [project README](README.md).
+
 ## Scope and summary
 
 This report covers the unpacked Vite project in this directory. It is an interactive Three.js model of a conventional engine lathe. The scene has 441 objects, including 372 meshes. Its controls move machine assemblies, rotate the spindle, and drive a simplified automatic feed. It does not simulate material removal.

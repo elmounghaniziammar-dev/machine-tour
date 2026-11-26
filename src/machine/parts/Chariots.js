@@ -12,8 +12,8 @@ export function creerChariots() {
   box(
     crossSlide,
     "crossSlideTable",
-    [145, 35, 220],
-    [0, 87, 65],
+    [115, 35, 220],
+    [13, 87, 65],
     materials.bed,
   );
   const compoundRest = group(
@@ -21,18 +21,18 @@ export function creerChariots() {
     "Compound rest",
     "Rotates the top-slide assembly about the vertical axis.",
   );
-  compoundRest.position.set(0, 110, 60);
+  compoundRest.position.set(26, 110, 80);
   crossSlide.add(compoundRest);
   cylinder(
     compoundRest,
     "compoundSwivelBase",
-    65,
+    47,
     15,
     [0, 0, 0],
     materials.steel,
     "y",
   );
-  box(compoundRest, "compoundSlide", [135, 28, 105], [0, 22, 0]);
+  box(compoundRest, "compoundSlide", [110, 28, 76], [12, 22, 0]);
   const { toolPost, toolTip } = creerPorteOutil();
   compoundRest.add(toolPost);
   return { crossSlide, compoundRest, toolPost, toolTip };

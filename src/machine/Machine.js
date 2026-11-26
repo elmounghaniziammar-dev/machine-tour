@@ -4,6 +4,7 @@ import { createStand } from "./parts/Support.js";
 import { createHeadstock } from "./parts/PoupeeFixe.js";
 import { createCarriage } from "./parts/Trainard.js";
 import { createTailstock } from "./parts/PoupeeMobile.js";
+import { creerEtatMachine } from "../mecanique/EtatMachine.js";
 
 // Cette fonction assemble les grandes parties de la machine.
 // Chaque fonction importée construit une partie dans son propre fichier.
@@ -19,9 +20,11 @@ export function creerMachine() {
 
   // 2. Placer les parties sur le banc. Les valeurs sont en millimètres.
   // X Three.js = longueur du banc ; Y = hauteur ; Z = profondeur.
-  trainard.root.position.x = 565;
-  trainard.crossSlide.position.z = 20;
-  poupeeMobile.root.position.x = 826;
+  const initial = creerEtatMachine();
+  trainard.root.position.x = initial.trainardZ;
+  trainard.crossSlide.position.z = initial.transversalX;
+  poupeeMobile.root.position.x = initial.poupeeZ;
+  poupeeMobile.quill.position.x = -110 - initial.fourreau;
 
   // 3. Ajouter toutes les parties au même groupe.
   machine.add(support, banc, poupeeFixe.root, trainard.root, poupeeMobile.root);
@@ -31,6 +34,7 @@ export function creerMachine() {
   compound.add(dessus);
   dessus.add(machine.getObjectByName("compoundSlide"));
   dessus.add(machine.getObjectByName("toolPost"));
+  dessus.add(machine.getObjectByName("compoundHandwheel"), machine.getObjectByName("compoundScrewEnd"));
 
   // La vis tourne autour de son propre axe, pas autour de l'origine du banc.
   const vis = group("leadScrewDrive", "Lead screw drive");
@@ -48,6 +52,9 @@ export function creerMachine() {
   }
   machine.elements = {
     broche: trouver("spindle"),
+    piece: trouver("workpiece"),
+    mors: trouver("jawGrippingStep0"),
+    bec: trouver("toolTip"),
     trainard: trouver("carriage"),
     transversal: trouver("crossSlide"),
     chariotSuperieur: dessus,
@@ -59,6 +66,8 @@ export function creerMachine() {
     barre: trouver("feedRod"),
     volantTrainard: trouver("carriageHandwheel"),
     volantTransversal: trouver("crossSlideHandwheel"),
+    tambourTransversal: trouver("crossSlideDial"),
+    repereTambour: trouver("crossDialReference"),
     volantSuperieur: trouver("compoundHandwheel"),
     volantFourreau: trouver("tailstockHandwheel"),
     selecteurVitesse: trouver("headstockSelector0"),
@@ -71,7 +80,7 @@ export function creerMachine() {
     verrouFourreau: trouver("quillLockLever"),
   };
   machine.elements.levierDirection.userData.label =
-    "Spindle start / stop / direction";
+    "Levier de broche";
   machine.elements.levierDirection.userData.functionText =
     "Drag to forward, stop or reverse; release at stop before reversing.";
   machine.elements.selecteurVitesse.userData.label = "Spindle speed selector";

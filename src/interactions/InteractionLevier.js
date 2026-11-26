@@ -1,9 +1,10 @@
-// Les trois crans du levier correspondent à la position visible de la broche.
+import { CRANS_BROCHE, SENS_COUPE } from "../mecanique/EtatMachine.js";
+
 export function reglerDirection(position, etat) {
-  if (!["off", "cw", "ccw"].includes(position))
+  if (!CRANS_BROCHE.includes(position))
     throw new Error("Invalid spindle lever position");
   if (etat.urgence && position !== "off") {
-    etat.message = "Release the emergency stop before starting the spindle.";
+    etat.message = "Réarmer l’arrêt d’urgence avant de démarrer la broche.";
     return false;
   }
   // Une inversion demande deux gestes : arrêt, puis choix du nouveau sens.
@@ -13,20 +14,28 @@ export function reglerDirection(position, etat) {
     etat.direction !== position
   ) {
     etat.direction = "off";
-    etat.message = "Spindle stopped. Select the opposite direction again.";
+    etat.message = "Broche arrêtée. Sélectionner le nouveau sens de rotation.";
     return false;
   }
   etat.direction = position;
   etat.message =
     position === "off"
-      ? "Spindle stopped."
-      : `Spindle running ${position === "cw" ? "forward" : "reverse"}.`;
+      ? "Broche arrêtée."
+      : position === SENS_COUPE ? "Broche en marche avant." : "Broche en marche arrière.";
   return true;
+}
+
+export function motifBlocageAvanceLongitudinale(etat) {
+  if (etat.engagement === "rod") return "";
+  if (etat.urgence) return "Réarmer l’arrêt d’urgence avant d’embrayer l’avance.";
+  if (etat.engagement === "screw") return "Ouvrir les demi-noix avant d’embrayer la barre d’avance.";
+  if (etat.passe) return "Le cycle commande le positionnement du chariot.";
+  return "";
 }
 
 export function actionnerLevier(nom, etat) {
   if (nom === "direction" || nom === "inverse") {
-    const sens = nom === "direction" ? "cw" : "ccw";
+    const sens = nom === "direction" ? SENS_COUPE : "cw";
     return reglerDirection(etat.direction === sens ? "off" : sens, etat);
   }
   if (nom === "arret") {
@@ -35,36 +44,56 @@ export function actionnerLevier(nom, etat) {
     etat.direction = "off";
     etat.engagement = "off";
     etat.message = etat.urgence
-      ? "Emergency stop engaged. Motorized motion stopped."
-      : "Emergency stop released. Spindle remains stopped.";
+      ? "Arrêt d’urgence enclenché. Broche arrêtée et avance débrayée."
+      : "Arrêt d’urgence réarmé. Broche à l’arrêt.";
     return true;
   }
-  if (nom === "avance" || nom === "demiNoix") {
-    if (etat.urgence) {
-      etat.message = "Release the emergency stop before engaging feed.";
+  if (nom === "avance") {
+    const blocage = motifBlocageAvanceLongitudinale(etat);
+    if (blocage) {
+      etat.message = blocage;
       return false;
     }
-    const mode = nom === "avance" ? "rod" : "screw";
-    etat.engagement = etat.engagement === mode ? "off" : mode;
-    etat.message = `Automatic feed: ${etat.engagement}`;
+    if (etat.engagement === "rod") {
+      etat.engagement = "off";
+      etat.message = etat.passe ? "Passe interrompue au levier. Avance Z débrayée." : "Avance Z débrayée.";
+      etat.passe = null;
+    } else {
+      etat.engagement = "rod";
+      etat.message = etat.direction === "off" ? "Avance Z enclenchée. En attente de la broche." : "Avance Z enclenchée.";
+    }
+    return true;
+  }
+  if (nom === "demiNoix") {
+    if (etat.engagement === "screw") {
+      etat.engagement = "off";
+      etat.message = "Demi-noix ouvertes.";
+      return true;
+    }
+    if (etat.engagement === "rod" || etat.passe || etat.urgence) {
+      etat.message = etat.urgence ? "Réarmer l’arrêt d’urgence." :
+        "Débrayer l’avance et terminer le cycle avant de fermer les demi-noix.";
+      return false;
+    }
+    etat.engagement = "screw";
+    etat.message = "Demi-noix engagées sur la vis mère.";
     return true;
   }
   if (nom === "verrouPoupee") {
     etat.poupeeBloquee = !etat.poupeeBloquee;
-    etat.message = `Tailstock ${etat.poupeeBloquee ? "locked" : "unlocked: drag its casting along the bed"}.`;
+    etat.message = etat.poupeeBloquee ? "Poupée mobile bloquée." : "Poupée mobile libérée. Glisser son corps le long du banc.";
     return true;
   }
   if (nom === "verrouFourreau") {
     etat.fourreauBloque = !etat.fourreauBloque;
-    etat.message = `Quill ${etat.fourreauBloque ? "locked" : "unlocked"}.`;
+    etat.message = etat.fourreauBloque ? "Fourreau bloqué." : "Fourreau libéré.";
     return true;
   }
   return false;
 }
 
 export function afficherLeviers(elements, etat) {
-  elements.levierDirection.rotation.z =
-    etat.direction === "off" ? 0 : etat.direction === "cw" ? -0.65 : 0.65;
+  elements.levierDirection.rotation.z = (CRANS_BROCHE.indexOf(etat.direction) - 1) * 0.65;
   elements.levierAvance.rotation.z = etat.engagement === "rod" ? -0.55 : 0.55;
   elements.levierDemiNoix.rotation.z =
     etat.engagement === "screw" ? 0.65 : -0.65;

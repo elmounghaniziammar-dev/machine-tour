@@ -7,13 +7,16 @@ import { creerEtatMachine } from "./mecanique/EtatMachine.js";
 import { creerDeplacements } from "./mecanique/Deplacements.js";
 import { creerBroche } from "./mecanique/Broche.js";
 import { installerInteractions } from "./interactions/Selection.js";
+import { installerPanneau } from "./interactions/PanneauUsinage.js";
+import { creerCopeaux } from "./machine/parts/Copeaux.js";
 // 1. Créer la surface de dessin et vérifier la disponibilité de la 3D.
 const canvas = document.createElement("canvas");
-document.querySelector("#app").append(canvas);
+const vue = document.querySelector("#vue");
+vue.append(canvas);
 const context = canvas.getContext("webgl2", { antialias: true });
 if (!context) {
   document.querySelector("#app").innerHTML =
-    '<p class="notice">WebGL2 is unavailable. Open this model in a browser with graphics acceleration enabled.</p>';
+    '<p class="notice">Ce simulateur nécessite WebGL2. Ouvrir la page dans un navigateur avec accélération graphique.</p>';
 } else {
   // 2. La scène contient la machine, le sol et les lumières.
   const scene = new THREE.Scene();
@@ -24,7 +27,7 @@ if (!context) {
     context,
     antialias: true,
   });
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(vue.clientWidth, vue.clientHeight, false);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -33,7 +36,7 @@ if (!context) {
   // 3. La caméra représente notre point de vue.
   const camera = new THREE.PerspectiveCamera(
     36,
-    innerWidth / innerHeight,
+    vue.clientWidth / vue.clientHeight,
     1,
     15000,
   );
@@ -86,6 +89,33 @@ if (!context) {
   const etat = creerEtatMachine();
   const deplacements = creerDeplacements(machine.elements, etat);
   const broche = creerBroche(machine.elements, etat, deplacements);
+  const copeaux = creerCopeaux(machine);
+  scene.add(copeaux.objet);
+  const pointVue = new THREE.Vector3();
+  let vueActive = "ensemble", xPrecedent = 0;
+  const panneau = installerPanneau(etat, broche, deplacements, choix => {
+    vueActive = choix;
+    if (choix === "coupe") {
+      machine.elements.bec.getWorldPosition(pointVue);
+      xPrecedent = pointVue.x;
+      controls.target.copy(pointVue).x -= 12;
+      camera.position.copy(controls.target).add(new THREE.Vector3(32, 205, 72));
+    } else if (choix === "trainard") {
+      machine.elements.volantTransversal.getWorldPosition(controls.target);
+      controls.target.add(new THREE.Vector3(12, 5, -90));
+      camera.position.copy(controls.target).add(new THREE.Vector3(115, 140, 550));
+    } else if (choix === "tambour") {
+      machine.elements.tambourTransversal.getWorldPosition(controls.target);
+      camera.position.copy(controls.target).add(new THREE.Vector3(59, 86, 184));
+    } else if (choix === "plaque") {
+      machine.getObjectByName("sn40Plates").getWorldPosition(controls.target);
+      camera.position.copy(controls.target).add(new THREE.Vector3(0, 0, 430));
+    } else {
+      controls.target.set(630, -180, 0);
+      camera.position.set(1810, 780, 1920);
+    }
+    controls.update();
+  });
   const interactions = installerInteractions(
     machine,
     camera,
@@ -99,7 +129,22 @@ if (!context) {
   // 8. Les mouvements sont calculés avec le temps écoulé, en secondes.
   function frame() {
     const dt = clock.getDelta();
-    if (!document.hidden) broche.actualiser(dt);
+    if (!document.hidden) {
+      const profil = machine.elements.piece.profil;
+      const avant = profil.volume;
+      broche.actualiser(dt);
+      if (vueActive === "coupe") {
+        machine.elements.bec.getWorldPosition(pointVue);
+        camera.position.x += pointVue.x - xPrecedent;
+        controls.target.x += pointVue.x - xPrecedent;
+        xPrecedent = pointVue.x;
+      }
+      machine.elements.piece.actualiserSurface();
+      const enleve = profil.volume - avant;
+      const vitesseSurface = 2 * Math.PI * profil.contact.r * etat.vitesse / 60;
+      copeaux.actualiser(dt, enleve, vitesseSurface);
+      panneau.actualiser(dt, enleve);
+    }
     // Pendant un geste mécanique, la caméra reste immobile.
     if (controls.enabled) controls.update();
     interactions.actualiser();
@@ -109,19 +154,25 @@ if (!context) {
   // Éviter un saut de position lorsqu'on revient sur l'onglet.
   const reprendre = () => clock.getDelta();
   document.addEventListener("visibilitychange", reprendre);
+  const taille = new ResizeObserver(() => {
+    camera.aspect = vue.clientWidth / Math.max(1, vue.clientHeight);
+    // Garder la pièce et ses deux appuis visibles dans une vue étroite.
+    camera.zoom = Math.min(1, camera.aspect / 1.25);
+    camera.updateProjectionMatrix();
+    renderer.setSize(vue.clientWidth, vue.clientHeight, false);
+  });
+  taille.observe(vue);
   if (import.meta.hot)
     import.meta.hot.dispose(() => {
       renderer.setAnimationLoop(null);
       interactions.dispose();
+      panneau.dispose();
+      copeaux.dispose();
+      taille.disconnect();
+      canvas.remove();
       controls.dispose();
       environment.dispose();
       renderer.dispose();
       document.removeEventListener("visibilitychange", reprendre);
     });
-  // Adapter la caméra et le dessin si la fenêtre change de taille.
-  addEventListener("resize", () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-  });
 }

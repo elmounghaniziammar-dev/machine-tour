@@ -2,14 +2,14 @@
 // Les positions des petites pièces sont relatives à cette base.
 
 import { group, box, cylinder, materials } from "../../utils/geometry.js";
-import { bolt } from "./Details.js";
+import { bolt, digits, plate } from "./Details.js";
 import { handwheel, crossDial, lever } from "./Volants.js";
 import { creerChariots } from "./Chariots.js";
 export function createCarriage() {
   const root = group(
     "carriage",
     "Carriage",
-    "Carries the complete tool assembly along machine X.",
+    "Porte l’outil le long de l’axe Z du tour.",
   );
   box(root, "saddle", [230, 40, 310], [0, 20, 0], materials.bed);
   const apron = group(
@@ -39,12 +39,12 @@ export function createCarriage() {
     for (const [j, x] of [-95, 95].entries())
       bolt(root, `saddleFixing${i}${j}`, [x, 42, z], "y", 5);
   }
-  for (const [i, x] of [-59, 59].entries())
+  for (const [i, z] of [-34, 34].entries())
     box(
       compoundRest,
       `compoundGuideEdge${i}`,
-      [8, 8, 102],
-      [x, 10, 0],
+      [108, 8, 8],
+      [0, 10, z],
       materials.steel,
     );
   for (let i = 0; i < 24; i++) {
@@ -53,7 +53,7 @@ export function createCarriage() {
       compoundRest,
       `compoundAngleMark${i}`,
       [0.7, 1, 5],
-      [Math.sin(a) * 60, 8, Math.cos(a) * 60],
+      [Math.sin(a) * 44, 8, Math.cos(a) * 44],
       materials.dark,
     );
     mark.rotation.y = a;
@@ -87,20 +87,29 @@ export function createCarriage() {
   const dial = crossDial();
   dial.position.z = -19;
   crossWheel.add(dial);
-  box(root, "crossDialReference", [2, 7, 5], [0, 97, 238], materials.dark);
+  // Patte solidaire du traînard, derrière le tambour, avec un index affleurant sa face.
+  box(root, "crossDialIndexBracket", [6, 28, 3], [0, 88, 225], materials.steel);
+  box(root, "crossDialIndexBridge", [6, 5, 20], [0, 100, 235], materials.steel);
+  box(root, "crossDialIndexPlate", [6, 13, 1], [0, 98, 245.6], materials.steel);
+  box(root, "crossDialReference", [1, 14, 0.5], [0, 98, 246.3], materials.dark);
   const compoundWheel = handwheel("compoundHandwheel", 22);
-  compoundWheel.position.set(0, 22, 91);
+  compoundWheel.position.set(77, 22, 0);
+  compoundWheel.rotation.y = Math.PI / 2;
   compoundRest.add(compoundWheel);
   cylinder(
     compoundRest,
     "compoundScrewEnd",
     8,
-    35,
-    [0, 22, 70],
+    20,
+    [70, 22, 0],
     materials.steel,
-    "z",
+    "x",
   );
-  const feedLever = lever("apronFeedLever", "Feed engagement lever", 32);
+  // Les positions 0 et 1 repèrent le débrayage et l’embrayage sur le tablier.
+  const cransAvance = plate(apron, "longitudinalFeedPlate", [54, 11], [67, 10, 219]);
+  digits(cransAvance, "feedReleasedMark", "0", [-19, 0, 2.8], 7);
+  digits(cransAvance, "feedEngagedMark", "1", [19, 0, 2.8], 7);
+  const feedLever = lever("apronFeedLever", "Levier d’avance longitudinale Z", 32);
   feedLever.position.set(67, -25, 224);
   feedLever.rotation.z = 0.55;
   root.add(feedLever);

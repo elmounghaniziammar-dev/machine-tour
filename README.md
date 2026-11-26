@@ -2,7 +2,7 @@
 
 Ce projet représente un tour parallèle générique en 3D avec Three.js. La caméra permet d'examiner la machine ; les commandes dessinées sur celle-ci permettent de déplacer les chariots et la poupée mobile, de régler la broche et d'engager une avance automatique. Le code est en JavaScript, sans framework d'interface.
 
-Il s'agit d'une **simulation cinématique simplifiée** : les assemblages se déplacent comme des corps rigides et leurs courses sont bornées. Le modèle ne réalise aucun enlèvement de matière.
+Le simulateur associe la cinématique du tour à un modèle géométrique de coupe. La pièce est fixée à la broche. Le bec de la plaquette enlève de la matière sur les secteurs de pièce qui défilent devant lui. La surface usinée et le volume des copeaux proviennent de ce même calcul.
 
 ## Lancer le projet
 
@@ -15,9 +15,34 @@ npm run dev
 
 Ouvrir l'adresse indiquée par Vite. Il faut un navigateur avec WebGL2 ; ouvrir `index.html` directement ne charge pas correctement les modules. `npm install` peut remplacer `npm ci` si le fichier de verrouillage doit être mis à jour.
 
+## Effectuer une passe
+
+Le projet simule le **chariotage extérieur** d’un brut de Ø 40 × 150 mm. Le mandrin serre la pièce à gauche. À droite, une contre-pointe tournante la soutient dans un trou de centre préparé à 60°.
+
+1. Saisir le **diamètre à enlever**, le régime et l’avance par tour. Par exemple, enlever 4 mm sur Ø 40 mm donne Ø 36 mm et une profondeur radiale de 2 mm.
+2. Cliquer sur **Mettre en appui et bloquer**, ou sortir le fourreau au volant jusqu’au contact puis le verrouiller. La poupée mobile est initialement bloquée sur le banc.
+3. La passe guidée peut démarrer depuis une position dégagée. Le simulateur connaît le diamètre de sa pièce et rejoint automatiquement le départ. Pour s’exercer au réglage manuel, tangenter au volant transversal et mettre le tambour à zéro.
+4. Cliquer sur **Lancer le chariotage**. Le simulateur vérifie les jeux du montage, démarre la broche en marche avant et dégage l’outil radialement si le retour l’exige. Il rejoint ensuite la face droite, prend la profondeur hors matière et embraye l’avance vers le mandrin. La caméra suit la coupe. **Interrompre l’avance** débraye la passe à tout moment.
+5. À la fin des **120 mm usinables**, le traînard s’arrête et la broche continue de tourner. Le bec conserve 7,5 mm de jeu axial avec les mors sur ce montage. Pour une nouvelle passe, dégager l’outil au transversal, revenir au bord droit et tangenter le diamètre obtenu.
+
+**Démarrer la broche seule** permet de faire tourner la pièce indépendamment du traînard. Pour conduire la machine aux commandes 3D, prendre la profondeur au transversal hors de la pièce puis embrayer la barre d’avance. En chariotage, la trajectoire du traînard est parallèle à l’axe de la broche et produit une surface cylindrique. [Notice du tour SIDERMÉCA, § 6.6](https://www.metiers-et-passions.com/waroot/METP/fr_FR/attachments/notice_instruction/NI_92222018.pdf)
+
+## Modèle de coupe
+
+- Le brut est échantillonné tous les 0,25 mm le long de son axe et en 48 secteurs autour de la broche. La simulation interpole la position des arêtes à leur passage devant chaque secteur. Une fraction de révolution usine une fraction de la circonférence. **Ø au bec** mesure le diamètre d’enveloppe de la section en cours de coupe. **Ø derrière le bec** mesure celui de la section côté contre-pointe, après le passage de l’arête de finition. La différence est visible pendant l’avance.
+- Pour une passe cylindrique, la pénétration radiale vaut `aₚ = (D₀ − D₁) / 2`. L'avance vaut `v_f = f × n` en mm/min, avec `f` en mm/tr et `n` en tr/min. La vitesse de coupe affichée vaut `V_c = π × D × n / 1000` en m/min pour un diamètre en mm. [Formules de tournage métriques, Sandvik Coromant](https://cdn2.sandvik.coromant.com/files/sitecollectiondocuments/elearning/formulas-and-definitions/h84_turning_formulas_fra_metric.pdf)
+- Le volume d'une couronne de longueur `L` vaut `π × L × (D₀² − D₁²) / 4`. Le calcul additionne cette différence pour les secteurs réellement entamés, avec leur largeur axiale et leur fraction de tour. Un passage dans le vide ou sur une surface déjà entièrement balayée ajoute zéro. Les flancs inclinés et les traces d'avance de la plaquette contribuent à la mesure réelle.
+- Le rendu émet un ruban de copeau pour 4 mm³ retirés. Le reliquat est conservé pour l'image suivante. À très fort débit, les fragments d'une même image sont regroupés pour borner le coût du rendu. La trajectoire inclut la gravité et un contact simplifié avec les surfaces de réception. La forme et la teinte des rubans sont illustratives. Les efforts, la température et l'usure de la plaquette sont hors du modèle.
+
 ## Utiliser la machine
 
-Survoler une commande 3D la met légèrement en évidence et affiche une courte infobulle en anglais : nom, valeur actuelle et geste attendu. Un bref message d'état apparaît en bas à gauche, notamment lorsqu'une butée ou un verrou bloque un mouvement. Toutes les commandes se manipulent sur la machine elle-même.
+Dans **Volants et avance**, tourner le volant transversal dans la vue 3D ou utiliser les boutons d’une division. Sur ce simulateur, une division correspond à 0,05 mm **au rayon**, soit 0,10 mm sur le diamètre si l’on coupe. À la tangence, cliquer sur la bague graduée ou sur **Mettre le tambour à zéro**. Le bec garde sa position. La lecture à l’index recommence à zéro à chaque tour de 5 mm, tandis que la course radiale cumule les tours. La mise à zéro est disponible en conduite manuelle, y compris lorsque la broche tourne seule.
+
+Le levier d’avance sur le tablier et **Embrayer l’avance Z** actionnent la même barre. Broche arrêtée, l’embrayage prépare le mouvement. En marche avant, le traînard avance vers le mandrin et la coordonnée Z diminue. L’origine Z affichée est la face droite du brut. À 250 tr/min et 0,10 mm/tr, l’avance est de 25 mm/min. Débrayer arrête l’avance et conserve le régime de la pièce.
+
+L’onglet **Plaque SN 40** reprend les 6 lignes et les 4 colonnes de la photo fournie. La case cachée par le gant porte un tiret. Le tableau de filetage situé à droite est visible sur la poupée fixe et dans la photo originale. Le pas du tambour et les avances en mm/tr reprennent les paramètres du simulateur. La photo documente les régimes de broche.
+
+Survoler une commande 3D la met en évidence et affiche une infobulle avec son nom, sa valeur et le geste attendu. Un message d'état dans la vue 3D signale notamment les butées et les verrous. Le cran **Marche avant · sens de coupe** correspond à la rotation antihoraire vue depuis la poupée mobile. La surface avant de la pièce descend alors sur la plaquette.
 
 | Commande | Action |
 | --- | --- |
@@ -26,11 +51,11 @@ Survoler une commande 3D la met légèrement en évidence et affiche une courte 
 | Bouton droit glissé | Déplacer la vue. |
 | Maintenir la poignée ou la jante du volant du traînard, puis décrire un cercle | Déplacer le traînard et tous les chariots portés le long du banc, à raison de 25 mm par tour. Désengager d'abord l'avance automatique. |
 | Tourner le volant transversal d'un geste circulaire | Déplacer le transversal et l'outil de 5 mm **radiaux** par tour. Son tambour tourne avec le volant : 100 divisions, soit 0,05 mm radial par division. |
-| Tourner la manivelle du petit chariot d'un geste circulaire | Déplacer le coulisseau et l'outil sur l'axe local de la base orientable, à raison de 2 mm par tour ; la base reste fixe. |
+| Tourner la manivelle à l’extrémité droite du petit chariot | Déplacer le coulisseau et l’outil parallèlement au banc sur ce montage, à raison de 2 mm par tour. |
 | Tourner le volant de la poupée mobile d'un geste circulaire | Sortir ou rentrer le fourreau vers le mandrin, à raison de 4 mm par tour et dans une course de 0 à 80 mm, si son verrou est ouvert. |
 | Glisser le levier de verrouillage de la poupée mobile, puis son corps | Déverrouiller et faire glisser la poupée uniquement le long du banc. Remettre le levier en position verrouillée pour l'immobiliser. |
 | Glisser le levier de verrouillage du fourreau | Bloquer ou libérer l'extension du fourreau. |
-| Maintenir et glisser le sélecteur de vitesse | Choisir l'un des 12 crans, de 45 à 2 000 tr/min. La broche doit être arrêtée. La valeur choisie s'affiche discrètement près du sélecteur. |
+| Maintenir et glisser le sélecteur de vitesse | Choisir à l’arrêt l’un des 14 régimes distincts visibles sur la plaque SN 40, de 22,4 à 2 000 tr/min. |
 | Cliquer le sélecteur d'avance | Choisir l'avance suivante en mm par tour ; `Maj` + clic revient à la précédente. |
 | Maintenir et glisser le levier de broche | Choisir marche avant, arrêt ou marche arrière. Pour inverser la rotation, relâcher d'abord au cran d'arrêt, puis effectuer un second geste vers le sens opposé. |
 | Cliquer le levier d'avance ou celui des demi-noix | Engager ou désengager respectivement la barre d'avance ou la vis mère. |
@@ -55,11 +80,15 @@ Orienter la vue assez face au volant ou au levier pour que le geste circulaire s
 | `src/mecanique/Deplacements.js`, `Limites.js` | Application des déplacements et bornes de course. |
 | `src/mecanique/Collisions.js` | Limitation des déplacements au premier contact estimé entre assemblages. |
 | `src/mecanique/Broche.js` | Rotation de la broche et avance automatique selon le temps écoulé. |
+| `src/mecanique/ProfilPiece.js`, `Coupe.js` | Rayons résiduels, balayage des arêtes de coupe et bilan volumique. |
+| `src/machine/parts/Copeaux.js` | Émission et mouvement des rubans de copeaux. |
+| `src/interactions/PanneauUsinage.js` | Réduction du diamètre, préparation du montage, commande de chariotage et mesures en direct. |
 | `src/interactions/Selection.js` | Sélection des commandes visibles par lancer de rayon, gestes de pointeur, infobulles et messages d'état. |
 | `src/interactions/InteractionVolant.js` | Projection des gestes sur les plans des volants et du banc. |
 | `src/interactions/InteractionSelecteur.js`, `InteractionLevier.js` | Réglages et représentation visuelle des sélecteurs et leviers. |
 | `test/physics.test.js` | Vérifications des contacts, de la rigidité des assemblages et des matériaux. |
 | `test/controls.test.js` | Vérifications des crans, verrous, courses et gestes circulaires. |
+| `test/usinage.test.js` | Révolution partielle, conservation du volume, profils de passe, arrêt et copeaux. |
 
 Pour suivre le fonctionnement, commencer par `main.js`, puis `Machine.js`, `EtatMachine.js`, `Deplacements.js`, `Collisions.js` et `Selection.js`. Les fichiers de `parts/` définissent ensuite la géométrie visible.
 
@@ -72,7 +101,7 @@ Pour suivre le fonctionnement, commencer par `main.js`, puis `Machine.js`, `Etat
 
 `Deplacements.js` déplace les groupes parents ; leurs pièces enfants conservent donc leurs positions relatives. `Limites.js` applique d'abord les bornes de course. `Collisions.js` compare ensuite des boîtes englobantes alignées sur les axes pour les maillages des assemblages et arrête un geste au premier contact estimé. Les jeux internes nécessaires au guidage, comme banc/trainard ou fourreau/poupée, sont exclus de ces contrôles. La trajectoire des éléments tournants de la broche utilise une enveloppe radiale pour éviter un passage entre deux images.
 
-Ces boîtes sont une approximation : un mouvement peut être arrêté avant que les surfaces visibles se touchent, et le système n'est ni un solveur de physique ni une simulation d'usinage. La rotation, l'avance et le contact de la pointe avec la pièce sont simplifiés ; il n'y a pas de coupe, de déformation, d'effort ou de filetage de la pièce.
+La portée conique de la contre-pointe est modélisée par tranches axiales de 1 mm pour déterminer ses jeux avec le porte-outil. La profondeur du trou de centre donne la butée du fourreau. Les autres enveloppes de collision sont conservatrices et peuvent arrêter un mouvement avant le contact visible. Seule la plaquette enlève de la matière. À l’arrêt, le contact de ses arêtes tient compte du diamètre résiduel de chaque section. Les jeux, les courses et la zone de prise sont ceux de la géométrie simulée.
 
 ## Modifier le modèle
 

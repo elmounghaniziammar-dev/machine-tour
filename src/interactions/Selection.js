@@ -13,8 +13,8 @@ import {
   afficherSelecteurs,
   reglerVitesseIndex,
 } from "./InteractionSelecteur.js";
-import { VITESSES } from "../mecanique/EtatMachine.js";
-import { PAS } from "../mecanique/Limites.js";
+import { CRANS_BROCHE, SENS_COUPE, VITESSES } from "../mecanique/EtatMachine.js";
+import { PAS, SENS_VOLANT } from "../mecanique/Limites.js";
 
 // Le premier objet réellement visible doit être la commande : pas de clic à travers la fonte.
 export function trouverCommande(machine, raycaster, commandes) {
@@ -46,105 +46,113 @@ export function installerInteractions(
   deplacements,
 ) {
   const e = machine.elements;
+  const mm = n => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const commandes = [
     {
       objet: e.volantTrainard,
       type: "volant",
       axe: "trainardZ",
       pas: PAS.trainardZ,
-      nom: "Carriage handwheel",
-      valeur: () => `${etat.trainardZ.toFixed(2)} mm along bed`,
-      geste: "Hold the rim or handle and turn in a circle",
+      nom: "Volant du traînard",
+      valeur: () => `${etat.trainardZ.toFixed(2)} mm le long du banc`,
+      geste: "Saisir la jante ou la poignée et tourner",
     },
     {
       objet: e.volantTransversal,
       type: "volant",
       axe: "transversalX",
       pas: PAS.transversalX,
-      nom: "Cross-slide handwheel",
-      valeur: () => `${(etat.transversalX - 20).toFixed(2)} mm radial travel`,
-      geste: "Hold and turn in a circle · 0.05 mm/division",
+      nom: "Volant du transversal",
+      valeur: () => `${mm(deplacements.lireTambour().deplacement)} mm depuis le zéro radial`,
+      geste: "Tourner le volant · 0,05 mm radial par division",
+    },
+    {
+      objet: e.tambourTransversal,
+      type: "zero",
+      nom: "Tambour transversal",
+      valeur: () => `${mm(deplacements.lireTambour().deplacement)} mm depuis le zéro radial`,
+      geste: "Cliquer sur la bague pour la mettre à zéro",
     },
     {
       objet: e.volantSuperieur,
       type: "volant",
       axe: "petitChariot",
       pas: PAS.petitChariot,
-      nom: "Compound handwheel",
-      valeur: () => `${etat.petitChariot.toFixed(2)} mm along its guide`,
-      geste: "Hold and turn in a circle",
+      nom: "Volant du petit chariot",
+      valeur: () => `${etat.petitChariot.toFixed(2)} mm sur la glissière longitudinale`,
+      geste: "Saisir la poignée et tourner",
     },
     {
       objet: e.volantFourreau,
       type: "volant",
       axe: "fourreau",
       pas: PAS.fourreau,
-      nom: "Tailstock handwheel",
-      valeur: () => `${etat.fourreau.toFixed(2)} mm extension`,
-      geste: "Hold and turn in a circle",
+      nom: "Volant du fourreau",
+      valeur: () => `${etat.fourreau.toFixed(2)} mm de sortie du fourreau`,
+      geste: "Saisir la poignée et tourner",
     },
     {
       objet: e.corpsPoupee,
       type: "translation",
-      nom: "Tailstock",
-      valeur: () => `${etat.poupeeZ.toFixed(2)} mm · ${etat.poupeeBloquee ? "locked" : "unlocked"}`,
-      geste: "Unlock the bed lever, then drag along the bed",
+      nom: "Poupée mobile",
+      valeur: () => `${etat.poupeeZ.toFixed(2)} mm · ${etat.poupeeBloquee ? "bloquée" : "libérée"}`,
+      geste: "Débloquer le levier puis glisser le corps le long du banc",
     },
     {
       objet: e.selecteurVitesse,
       type: "vitesse",
-      nom: "vitesse",
-      valeur: () => `${etat.vitesse} rpm`,
-      geste: "Hold the lever and drag between detents · spindle stopped",
+      nom: "vitesse", titre: "Régime de broche",
+      valeur: () => `${etat.vitesse} tr/min`,
+      geste: "Arrêter la broche puis déplacer le levier entre les crans",
     },
     {
       objet: e.selecteurAvance,
       type: "selecteur",
-      nom: "avance",
-      valeur: () => `${etat.avance} mm/rev`,
-      geste: "Click for next setting · Shift+click for previous",
+      nom: "avance", titre: "Sélecteur d’avance (mm/tr)",
+      valeur: () => `${etat.avance} mm/tr`,
+      geste: "Cliquer pour avancer d’un cran · Maj + clic pour reculer",
     },
     {
       objet: e.levierDirection,
       type: "direction",
-      nom: "direction",
-      valeur: () => etat.direction === "off" ? "Stopped" : etat.direction === "cw" ? "Forward" : "Reverse",
-      geste: "Hold the lever and drag · release at stop before reversing",
+      nom: "direction", titre: "Sens de la broche",
+      valeur: () => etat.direction === "off" ? "Arrêt" : etat.direction === SENS_COUPE ? "Marche avant · sens de coupe" : "Marche arrière",
+      geste: "Glisser vers un cran · repasser par l’arrêt pour inverser",
     },
     {
       objet: e.arret,
       type: "arret",
-      nom: "arret",
-      valeur: () => etat.urgence ? "Pressed" : "Ready",
-      geste: "Click to stop · click again to reset",
+      nom: "arret", titre: "Arrêt d’urgence",
+      valeur: () => etat.urgence ? "Enclenché" : "Réarmé",
+      geste: "Cliquer pour arrêter · cliquer de nouveau pour réarmer",
     },
     {
       objet: e.levierAvance,
       type: "levier",
-      nom: "avance",
-      valeur: () => etat.engagement === "rod" ? "Engaged" : "Disengaged",
-      geste: "Click to engage or disengage",
+      nom: "avance", titre: "Levier d’avance longitudinale Z",
+      valeur: () => etat.engagement === "rod" ? "Embrayé" : "Débrayé",
+      geste: "Cliquer pour embrayer ou débrayer",
     },
     {
       objet: e.levierDemiNoix,
       type: "levier",
-      nom: "demiNoix",
-      valeur: () => etat.engagement === "screw" ? "Engaged" : "Disengaged",
-      geste: "Click to engage or disengage",
+      nom: "demiNoix", titre: "Demi-noix de la vis mère",
+      valeur: () => etat.engagement === "screw" ? "Embrayé" : "Débrayé",
+      geste: "Cliquer pour embrayer ou débrayer",
     },
     {
       objet: e.verrouPoupee,
       type: "verrou",
-      nom: "verrouPoupee",
-      valeur: () => etat.poupeeBloquee ? "Locked" : "Unlocked",
-      geste: "Drag the lever to lock or unlock",
+      nom: "verrouPoupee", titre: "Verrou de la poupée mobile",
+      valeur: () => etat.poupeeBloquee ? "Bloqué" : "Libéré",
+      geste: "Déplacer le levier pour bloquer ou libérer",
     },
     {
       objet: e.verrouFourreau,
       type: "verrou",
-      nom: "verrouFourreau",
-      valeur: () => etat.fourreauBloque ? "Locked" : "Unlocked",
-      geste: "Drag the lever to lock or unlock",
+      nom: "verrouFourreau", titre: "Verrou du fourreau",
+      valeur: () => etat.fourreauBloque ? "Bloqué" : "Libéré",
+      geste: "Déplacer le levier pour bloquer ou libérer",
     },
   ];
   const raycaster = new THREE.Raycaster();
@@ -157,7 +165,7 @@ export function installerInteractions(
   const aide = document.createElement("div");
   aide.setAttribute("role", "status");
   Object.assign(aide.style, {
-    position: "fixed",
+    position: "absolute",
     left: "16px",
     bottom: "16px",
     maxWidth: "min(560px, calc(100vw - 32px))",
@@ -169,7 +177,7 @@ export function installerInteractions(
     pointerEvents: "none",
     zIndex: "10",
   });
-  document.querySelector("#app").append(aide);
+  canvas.parentElement.append(aide);
   const infobulle = document.createElement("div");
   infobulle.setAttribute("role", "tooltip");
   Object.assign(infobulle.style, {
@@ -188,7 +196,7 @@ export function installerInteractions(
   document.querySelector("#app").append(infobulle);
 
   function texteInfobulle(commande) {
-    const titre = commande.objet.userData.label || commande.nom;
+    const titre = commande.titre || commande.nom;
     return `${titre} · ${commande.valeur()}\n${commande.geste}`;
   }
   function placerInfobulle(event) {
@@ -256,13 +264,13 @@ export function installerInteractions(
       rotation = commencerRotation(commande.objet, raycaster.ray);
       if (!rotation) {
         etat.message =
-          "Face the control and grab its rim, handle or lever tip.";
+          "Se placer face à la commande et saisir sa poignée.";
         return;
       }
     }
     if (commande.type === "translation") {
       if (etat.poupeeBloquee) {
-        etat.message = "Unlock the tailstock bed lever first.";
+        etat.message = "Débloquer le levier de la poupée mobile.";
         return;
       }
       translation = commencerTranslation(
@@ -272,7 +280,7 @@ export function installerInteractions(
         machine,
       );
       if (!translation) {
-        etat.message = "Orbit to view the bed from the front, then drag.";
+        etat.message = "Orienter la vue face au banc puis déplacer la poupée.";
         return;
       }
     }
@@ -314,13 +322,13 @@ export function installerInteractions(
       if (c.type === "volant" && variation !== 0) {
         deplacements.regler(
           c.axe,
-          etat[c.axe] - (variation / (2 * Math.PI)) * c.pas,
+          etat[c.axe] + SENS_VOLANT[c.axe] * (variation / (2 * Math.PI)) * c.pas,
         );
       } else if (c.type !== "volant") {
         geste.angleCumule += variation;
         const angle = geste.departAngle + geste.angleCumule;
         if (c.type === "vitesse") {
-          // Douze crans répartis sur l'arc du sélecteur.
+          // Un cran par régime identifiable sur la plaque.
           const borne = THREE.MathUtils.clamp(angle, -0.9, 0.9);
           const index = Math.round(((borne + 0.9) / 1.8) * (VITESSES.length - 1));
           if (VITESSES[index] !== etat.vitesse)
@@ -328,7 +336,7 @@ export function installerInteractions(
         } else if (c.type === "direction") {
           // Un geste parti en marche s'arrête au cran central avant l'inversion.
           const borne = THREE.MathUtils.clamp(angle, -0.65, 0.65);
-          let position = borne < -0.32 ? "cw" : borne > 0.32 ? "ccw" : "off";
+          let position = CRANS_BROCHE[Math.round(borne / 0.65) + 1];
           if (
             geste.directionInitiale !== "off" &&
             position !== "off" &&
@@ -368,6 +376,7 @@ export function installerInteractions(
         5
     ) {
       const c = ancien.commande;
+      if (c.type === "zero") deplacements.mettreTambourAZero();
       if (c.type === "selecteur")
         actionnerSelecteur(c.nom, etat, event.shiftKey);
       if (c.type === "levier" || c.type === "arret" || c.type === "verrou")

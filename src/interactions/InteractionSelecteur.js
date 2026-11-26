@@ -4,16 +4,16 @@ import { VITESSES, AVANCES } from "../mecanique/EtatMachine.js";
 export function reglerVitesseIndex(index, etat) {
   if (!Number.isFinite(index)) throw new Error("Invalid speed selector index");
   if (etat.direction !== "off") {
-    etat.message = "Stop the spindle before changing its speed.";
+    etat.message = "Arrêter la broche avant de changer de régime.";
     return false;
   }
   if (etat.urgence) {
-    etat.message = "Release the emergency stop before changing speed.";
+    etat.message = "Réarmer l’arrêt d’urgence avant de changer de régime.";
     return false;
   }
   const cran = Math.max(0, Math.min(VITESSES.length - 1, Math.round(index)));
   etat.vitesse = VITESSES[cran];
-  etat.message = `Spindle speed: ${etat.vitesse} rpm`;
+  etat.message = `Broche à ${etat.vitesse} tr/min`;
   return true;
 }
 
@@ -30,7 +30,7 @@ export function actionnerSelecteur(nom, etat, inverse = false) {
   const index = AVANCES.indexOf(etat.avance);
   etat.avance =
     AVANCES[(index + (inverse ? -1 : 1) + AVANCES.length) % AVANCES.length];
-  etat.message = `Feed: ${etat.avance} mm/rev`;
+  etat.message = `Avance de ${etat.avance} mm/tr`;
   return true;
 }
 
@@ -40,6 +40,8 @@ export function afficherSelecteurs(elements, etat) {
     -0.9 + (Math.max(0, index) / (VITESSES.length - 1)) * 1.8;
   elements.selecteurAvance.rotation.z =
     -0.75 + (AVANCES.indexOf(etat.avance) / (AVANCES.length - 1)) * 1.5;
+  for (const valeur of elements.selecteurAvance.lectureAvance.children)
+    valeur.visible = valeur.userData.avance === etat.avance;
 
   // Les chiffres gravés proches du levier montrent uniquement le cran actif.
   const afficheur =

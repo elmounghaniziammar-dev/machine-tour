@@ -2,7 +2,22 @@
 // Les chiffres sont dessinés avec de petites barres, comme un afficheur.
 
 import * as THREE from "three";
+import { Font } from "three/addons/loaders/FontLoader.js";
+import policePlaque from "three/examples/fonts/helvetiker_regular.typeface.json" with { type: "json" };
 import { box, cylinder, group, mesh, materials } from "../../utils/geometry.js";
+const police = new Font(policePlaque);
+const encreClaire = new THREE.MeshStandardMaterial({
+  color: 0xf5efda, roughness: 0.85, metalness: 0,
+});
+
+// Lettrage plan sur la face avant. Les dimensions et le centrage sont en mm.
+export function inscription(plaque, nom, texte, position, hauteur) {
+  const trace = new THREE.ShapeGeometry(police.generateShapes(texte, hauteur), 3);
+  trace.center();
+  const lettres = mesh(plaque, nom, trace, encreClaire, position, texte);
+  lettres.castShadow = false;
+  return lettres;
+}
 export function bolt(p, n, pos, axis = "y", r = 4) {
   const g = group(
     n,
@@ -87,6 +102,10 @@ export function digits(p, n, text, pos, h = 8) {
     g: [0, 0, 0.4, 0.07],
   };
   [...text].forEach((char, i) => {
+    if (char === ".") {
+      box(g, `${n}Decimal`, [h * 0.12, h * 0.12, 0.25],
+        [(i - (text.length - 1) / 2) * h * 0.7, -0.45 * h, 0], materials.steel);
+    }
     for (const s of patterns[char] ?? "") {
       const [x, y, w, t] = segs[s];
       box(

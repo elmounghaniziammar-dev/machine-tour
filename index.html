@@ -1,12 +1,106 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Interactive engine lathe — 3D model</title>
+    <title>Chariotage extérieur · Tour parallèle</title>
   </head>
   <body>
-    <div id="app"></div>
+    <main id="app">
+      <aside id="atelier" aria-label="Commande du tour" hidden>
+        <h1>Chariotage extérieur</h1>
+        <p class="brut">Brut cylindrique <span>Ø 40 × 150 mm</span></p>
+        <fieldset class="modes">
+          <legend class="sr-only">Commandes affichées</legend>
+          <label><input type="radio" name="mode" id="mode-passe" checked /><span>Passe guidée</span></label>
+          <label><input type="radio" name="mode" id="mode-manuel" /><span>Volants et avance</span></label>
+          <label><input type="radio" name="mode" id="mode-plaque" /><span>Plaque SN 40</span></label>
+        </fieldset>
+        <div class="reglages">
+          <label>Broche (tr/min)<select id="vitesse"></select></label>
+          <label>Avance simulée (mm/tr)<select id="avance"></select></label>
+        </div>
+        <div id="commande-passe">
+        <label>Diamètre à enlever (mm)<input id="reduction" type="number" min="0.1" step="0.1" value="4" /></label>
+        <p class="indication" id="cible"></p>
+        <section class="montage" aria-labelledby="titre-montage">
+          <h2 id="titre-montage">Préparer le montage</h2>
+          <p class="indication" id="appui"></p>
+          <button id="fourreau" type="button">Mettre en appui et bloquer</button>
+          <p class="indication" id="tangence"></p>
+          <div class="reglages volants" aria-label="Volant transversal">
+            <button id="approcher" type="button">Approcher de 1 mm</button>
+            <button id="reculer" type="button">Reculer de 1 mm</button>
+          </div>
+          <button id="bord" type="button" hidden>Ramener le bec au bord droit</button>
+        </section>
+        <button class="principal" id="lancer" type="button">Lancer le chariotage</button>
+        <p class="indication" id="geste"></p>
+        </div>
+        <div id="commande-manuelle" hidden>
+          <section class="organe" aria-labelledby="titre-tambour">
+            <h2 id="titre-tambour">Tambour transversal</h2>
+            <p class="indication" id="echelle-tambour"></p>
+            <dl>
+              <div><dt>Lecture à l’index</dt><dd id="lecture-tambour"></dd></div>
+              <div><dt>Course radiale depuis zéro</dt><dd id="course-transversale"></dd></div>
+            </dl>
+            <p class="indication">Tourner la poignée dans la vue 3D. La course est positive vers l’axe de la pièce.</p>
+            <div class="reglages volants">
+              <button type="button" id="division-plus">Avancer d’une division</button>
+              <button type="button" id="division-moins">Reculer d’une division</button>
+            </div>
+            <button type="button" id="zero-tambour">Mettre le tambour à zéro</button>
+          </section>
+          <section class="organe" aria-labelledby="titre-avance">
+            <h2 id="titre-avance">Avance longitudinale Z</h2>
+            <p class="indication" id="etat-levier"></p>
+            <dl>
+              <div><dt>Z du bec (face droite = 0)</dt><dd id="position-z"></dd></div>
+              <div><dt>Vitesse d’avance Z</dt><dd id="vitesse-z"></dd></div>
+            </dl>
+            <button id="embrayage" type="button">Embrayer l’avance Z</button>
+          </section>
+        </div>
+        <section id="plaque-sn40" class="organe" aria-label="Plaque de réglage TRENS SN 40" hidden>
+          <h2>TRENS SN 40</h2>
+          <table class="regimes">
+            <caption>Vitesses de broche (tr/min)</caption>
+            <thead><tr><th scope="colgroup" colspan="2">Z₁ · Z₂</th><th scope="colgroup" colspan="2">Z₂ · Z₁</th></tr></thead>
+            <tbody id="regimes-photo"></tbody>
+          </table>
+          <p class="indication">Les cases en vert indiquent le régime sélectionné. Le tiret correspond à la case masquée par le gant.</p>
+          <h2>Tableau de filetage</h2>
+          <p class="indication">La partie visible porte les repères D, 8:1, A C B, mm et MODUL. Le bord droit du tableau est hors champ.</p>
+          <details class="reference-photo">
+            <summary>Photo de la plaque</summary>
+            <a id="photo-originale" target="_blank" rel="noopener" aria-label="Ouvrir la photo originale du panneau TRENS SN 40">
+              <img src="./src/assets/reference-sn40.png" alt="Les deux plaques de la machine réelle TRENS SN 40, avec la dernière ligne partiellement masquée." />
+            </a>
+          </details>
+        </section>
+        <button id="moteur" type="button">Démarrer la broche seule</button>
+        <section class="mesures" aria-labelledby="titre-mesures">
+          <h2 id="titre-mesures">Mesures en direct</h2>
+          <p class="etat" id="etat-coupe">Broche arrêtée</p>
+          <dl>
+            <div><dt>Course depuis la face</dt><dd id="course"></dd></div>
+            <div><dt>Ø au bec</dt><dd id="mesure-diametre"></dd></div>
+            <div><dt>Ø derrière le bec</dt><dd id="diametre-usine"></dd></div>
+            <div><dt>Volume enlevé</dt><dd id="volume"></dd></div>
+            <div><dt>Vitesse de coupe</dt><dd id="vc"></dd></div>
+          </dl>
+        </section>
+        <label class="choix-vue">Vue 3D<select id="cadrage">
+          <option value="ensemble">Machine entière</option>
+          <option value="trainard">Volants et levier du traînard</option>
+          <option value="tambour">Tambour et repère fixe</option>
+          <option value="plaque">Plaque des réglages</option>
+          <option value="coupe">Zone de coupe</option>
+        </select></label>
+      </aside>
+      <div id="vue"></div>
+    </main>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
