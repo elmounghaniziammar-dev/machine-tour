@@ -4,6 +4,13 @@ body { margin: 0; color: #17392f; background: #e8eceb; font: 14px/1.45 "Inter", 
 #app { height: 100dvh; display: flex; }
 #vue { flex: 1; position: relative; min-width: 0; min-height: 0; }
 canvas { display: block; width: 100%; height: 100%; }
+.reperage { position: absolute; z-index: 2; top: 10px; left: 10px; max-width: calc(100% - 20px); padding: 8px 10px; border-radius: 6px; background: #fbfcf9f2; }
+.reperage strong { display: block; font-size: 12px; margin-bottom: 4px; }
+.reperage div { display: flex; flex-wrap: wrap; gap: 4px; }
+.reperage button { font: inherit; font-size: 13px; padding: 5px 8px; color: #17392f; background: white; border: 1px solid #aabdb2; border-radius: 4px; cursor: pointer; }
+.reperage button[aria-pressed="true"] { background: #25583f; color: white; }
+.reperage p { margin: 5px 0 0; font-size: 12px; }
+#repere-commande { position: absolute; z-index: 1; pointer-events: none; width: 32px; height: 32px; transform: translate(-50%, -50%); border: 3px solid #ffc343; border-radius: 50%; box-shadow: 0 0 0 2px #513b12; }
 #atelier { width: 304px; padding: 24px 18px; flex: none; overflow: auto; background: #fbfcf9; border-right: 1px solid #c9d4ce; }
 h1 { margin: 0; font-size: 23px; letter-spacing: -0.8px; }
 h2 { font-size: 15px; margin: 0 0 8px; }

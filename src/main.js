@@ -94,17 +94,33 @@ if (!context) {
   const pointVue = new THREE.Vector3();
   let vueActive = "ensemble", xPrecedent = 0;
   const panneau = installerPanneau(etat, deplacements);
+  const reperage = vue.querySelector(".reperage");
+  const repere = vue.querySelector("#repere-commande");
+  const indication = vue.querySelector("#geste-repere");
+  const positionRepere = new THREE.Vector3();
+  const commandesReperees = {
+    tambour: [machine.elements.volantTransversal, "Crank", "Tournez la poignée cerclée pour régler le diamètre. Un clic avance de 0,10 mm sur le diamètre."],
+    broche: [machine.elements.levierDirection, "Knob", "Cliquez sur la poignée cerclée pour démarrer ou arrêter la broche."],
+    trainard: [machine.elements.levierAvance, "Knob", "Cliquez sur le levier cerclé pour embrayer ou débrayer l’avance depuis la position actuelle."],
+  };
+  let cibleRepere = null;
   function cadrer(choix) {
     vueActive = choix;
+    const commande = commandesReperees[choix];
+    cibleRepere = commande ? commande[0].getObjectByName(commande[0].name + commande[1]) : null;
+    indication.hidden = !commande;
+    indication.textContent = commande?.[2] ?? "";
+    for (const bouton of reperage.querySelectorAll("button")) {
+      bouton.setAttribute("aria-pressed", String(bouton.dataset.vue === choix));
+    }
     if (choix === "coupe") {
       machine.elements.bec.getWorldPosition(pointVue);
       xPrecedent = pointVue.x;
       controls.target.copy(pointVue).x -= 12;
       camera.position.copy(controls.target).add(new THREE.Vector3(32, 205, 72));
-    } else if (choix === "trainard") {
-      machine.elements.volantTransversal.getWorldPosition(controls.target);
-      controls.target.add(new THREE.Vector3(12, 5, -90));
-      camera.position.copy(controls.target).add(new THREE.Vector3(115, 140, 550));
+    } else if (choix === "broche" || choix === "trainard") {
+      commande[0].getWorldPosition(controls.target);
+      camera.position.copy(controls.target).add(new THREE.Vector3(12, 35, 330));
     } else if (choix === "tambour") {
       machine.elements.tambourTransversal.getWorldPosition(controls.target);
       camera.position.copy(controls.target).add(new THREE.Vector3(59, 86, 184));
@@ -117,6 +133,12 @@ if (!context) {
     }
     controls.update();
   }
+  function choisirRepere(event) {
+    const bouton = event.target.closest("button[data-vue]");
+    if (bouton) cadrer(bouton.dataset.vue);
+  }
+  reperage.addEventListener("click", choisirRepere);
+  cadrer("ensemble");
   const vues = { "1": "ensemble", "2": "plaque", "3": "trainard", "4": "tambour", "5": "coupe" };
   function raccourciVue(event) {
     if (!controls.enabled || event.ctrlKey || event.altKey || event.metaKey || !Object.hasOwn(vues, event.key)) return;
@@ -154,6 +176,12 @@ if (!context) {
     }
     // Pendant un geste mécanique, la caméra reste immobile.
     if (controls.enabled) controls.update();
+    if (cibleRepere) {
+      cibleRepere.getWorldPosition(positionRepere).project(camera);
+      repere.hidden = Math.abs(positionRepere.x) > 1 || Math.abs(positionRepere.y) > 1 || Math.abs(positionRepere.z) > 1;
+      repere.style.left = (positionRepere.x + 1) * 50 + "%";
+      repere.style.top = (1 - positionRepere.y) * 50 + "%";
+    } else repere.hidden = true;
     interactions.actualiser();
     renderer.render(scene, camera);
   }
@@ -174,6 +202,7 @@ if (!context) {
       renderer.setAnimationLoop(null);
       interactions.dispose();
       panneau.dispose();
+      reperage.removeEventListener("click", choisirRepere);
       window.removeEventListener("keydown", raccourciVue);
       copeaux.dispose();
       taille.disconnect();

@@ -28,7 +28,9 @@ export function installerPanneau(etat, axes) {
     afficher("etat-coupe", etat.urgence ? "Arrêt d’urgence" : tourne ?
       sens + (enCoupe ? " · En coupe" : " · Sans enlèvement") : "Broche arrêtée");
     champs["etat-coupe"].classList.toggle("en-coupe", enCoupe);
-    afficher("diametre-regle", mesure(2 * Math.abs(p.r), "mm"));
+    const diametreRegle = 2 * Math.abs(p.r);
+    afficher("diametre-regle", mesure(diametreRegle, "mm"));
+    afficher("reduction-brut", mesure(Math.max(0, 2 * BRUT.rayon - diametreRegle), "mm"));
     afficher("mesure-diametre", diametre === null ? "Hors pièce" : mesure(diametre, "mm"));
     const derriere = diametre !== null && coupe.profil.volume > 0 ?
       coupe.profil.diametre(p.x + etat.avance + BRUT.pas) : null;

@@ -24,7 +24,7 @@ Le projet simule le **chariotage extérieur** d’un brut de Ø 40 × 150 mm. Le
 3. Cliquer sur le levier de broche pour démarrer en marche avant, puis sur le levier d’avance du tablier pour embrayer. Le traînard part de sa position actuelle. On peut aussi embrayer à l’arrêt puis démarrer la broche. L’outil peut avancer dans le vide avant la coupe.
 4. Cliquer de nouveau sur le levier du tablier à la fin de la longueur voulue. La broche continue de tourner. Les butées et les collisions bornent les mouvements.
 
-Le panneau 2D affiche uniquement des mesures et des états. Les touches **1 à 5** cadrent la machine entière, la poupée fixe, le traînard, le tambour et la zone de coupe. La molette permet de zoomer.
+Dans la vue 3D, **Localiser sur le tour** rapproche la caméra du volant ou du levier choisi. Manipuler la poignée entourée en jaune. Le panneau de mesures indique **Ø réglé au bec** et la **réduction réglée sur le brut Ø 40**. Par exemple, un réglage à Ø 36 correspond à 4 mm de réduction totale par rapport au brut initial. En approche, tant que le bec est à l’extérieur de Ø 40, la réduction reste à zéro. Les touches **1 à 5** cadrent la machine entière, la poupée fixe, le traînard, le tambour et la zone de coupe.
 
 ## Modèle de coupe
 

@@ -12,6 +12,7 @@
         <p class="etat" id="etat-coupe"></p>
         <section><h2>Pièce et outil</h2><dl>
           <div><dt>Ø réglé au bec</dt><dd id="diametre-regle"></dd></div>
+          <div><dt>Réduction réglée sur le brut Ø 40</dt><dd id="reduction-brut"></dd></div>
           <div><dt>Ø de la pièce au bec</dt><dd id="mesure-diametre"></dd></div>
           <div><dt>Ø derrière le bec</dt><dd id="diametre-usine"></dd></div>
           <div><dt>Volume enlevé</dt><dd id="volume"></dd></div>
@@ -30,7 +31,19 @@
           <div><dt>Écart de la pointe</dt><dd id="ecart"></dd></div>
         </dl></section>
       </aside>
-      <div id="vue"></div>
+      <div id="vue">
+        <nav class="reperage" aria-label="Cadrage des commandes du tour">
+          <strong>Localiser sur le tour</strong>
+          <div>
+            <button type="button" data-vue="tambour">Régler le diamètre</button>
+            <button type="button" data-vue="broche">Démarrer la broche</button>
+            <button type="button" data-vue="trainard">Lancer le chariotage</button>
+            <button type="button" data-vue="ensemble">Vue d’ensemble</button>
+          </div>
+          <p id="geste-repere" role="status" hidden></p>
+        </nav>
+        <span id="repere-commande" aria-hidden="true" hidden></span>
+      </div>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>
